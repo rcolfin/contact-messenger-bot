@@ -1,0 +1,35 @@
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+steps:
+  - name: "gcr.io/cloud-builders/docker"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+          docker build \
+            --build-arg BUILD_DATE="$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \
+            -t gcr.io/$PROJECT_ID/contact-messenger-bot \
+            . \
+            --pull
+
+  - name: "gcr.io/cloud-builders/docker"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+          docker push gcr.io/$PROJECT_ID/contact-messenger-bot
+
+  - name: "gcr.io/cloud-builders/gcloud"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+          gcloud run deploy \
+            contact-messenger-bot \
+            --platform managed \
+            --region us-central1 \
+            --image gcr.io/$PROJECT_ID/contact-messenger-bot
+
+images:
+  - 'gcr.io/$PROJECT_ID/contact-messenger-bot'

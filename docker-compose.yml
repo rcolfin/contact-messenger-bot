@@ -1,0 +1,18 @@
+name: contact-messenger-bot
+
+services:
+  contact-messenger-bot:
+    image: rcolfin/metelsoft:contact-messenger-bot
+    container_name: contact-messenger-bot
+    pull_policy: always
+    restart: unless-stopped
+
+    build:
+      context: .
+      dockerfile: Dockerfile
+      tags:
+        - rcolfin/metelsoft:contact-messenger-bot
+        - rcolfin/metelsoft:contact-messenger-bot${TAG:+-${TAG}}
+      args:
+        - PACKAGE=contact-messenger-bot-functions
+        - BUILD_DATE=${BUILD_DATE}

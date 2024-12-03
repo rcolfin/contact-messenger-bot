@@ -1,0 +1,18 @@
+{
+    "configurations": [
+        {
+            "name": "Python Debugger: Python File",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}"
+        },
+        {
+            "name": "Python Module: Python File",
+            "type": "python",
+            "request": "launch",
+            "module": "contact_messenger_bot.api",
+            "cwd": "${workspaceFolder}/contact-messenger-bot-api",
+            "args": ["list-contacts"]
+        }
+    ]
+}
