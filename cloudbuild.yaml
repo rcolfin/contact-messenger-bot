@@ -1,0 +1,49 @@
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+steps:
+  # Step 1: Docker login using credentials from Secret Manager
+  - name: "gcr.io/cloud-builders/docker"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+          echo "$$PASSWORD" | docker login -u "$$USERNAME" --password-stdin
+    secretEnv: ["USERNAME", "PASSWORD"]
+
+  # Step 2: List logged in user and registry:
+  - name: "gcr.io/cloud-builders/docker"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+          docker system info | grep -E "Username|Registry"
+
+  # Step 3: Docker build step
+  - name: "gcr.io/cloud-builders/docker"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+          docker build --build-arg BUILD_DATE="$(date -u +"%Y-%m-%dT%H:%M:%SZ")" -t docker.io/$$USERNAME/metelsoft:contact-messenger-bot -t gcr.io/$PROJECT_ID/contact-messenger-bot . --pull
+    secretEnv: ["USERNAME"]
+
+  # Step 4: Docker push step
+  - name: "gcr.io/cloud-builders/docker"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+          docker push docker.io/$$USERNAME/metelsoft:contact-messenger-bot
+    secretEnv: ["USERNAME"]
+
+# Secret Manager Configuration
+availableSecrets:
+  secretManager:
+    - versionName: projects/$PROJECT_ID/secrets/DOCKER_PASSWORD_SECRET_NAME/versions/latest
+      env: "PASSWORD"
+    - versionName: projects/$PROJECT_ID/secrets/DOCKER_USERNAME_SECRET_NAME/versions/latest
+      env: "USERNAME"
+
+images:
+  - 'gcr.io/$PROJECT_ID/contact-messenger-bot'

@@ -1,0 +1,80 @@
+name: Publish Docker Image
+
+permissions:
+  contents: read
+  checks: write
+  id-token: write
+  pull-requests: write
+
+on:
+  release:
+    types: [created]
+  pull_request:
+  push:
+
+jobs:
+  setup:
+    if: github.event_name == 'release' && startsWith(github.ref, 'refs/tags/v')
+
+    runs-on: ubuntu-latest
+    outputs:
+      dirs: ${{ steps.matrix.outputs.dirs }}
+      tag: ${{ steps.vars.outputs.tag }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Get the list of directories that contain a Dockerfile
+        id: matrix
+        run: |
+          set -euo pipefail
+          dirs=$(find -mindepth 3 -maxdepth 3 -type f -name 'Dockerfile' -printf '%h\n' | xargs dirname | cut -d/ -f2- | sort | tr "\n" " " | awk '{$1=$1};1')
+          dirs=$(jq -n --indent 0 --arg dirs "$dirs" '$dirs | split(" ")')
+          echo "dirs=$dirs" >> $GITHUB_OUTPUT
+
+      - name: Get the tag name for the release
+        id: vars
+        run: |
+            tag="${GITHUB_REF#refs/*/v}"  # refs/tags/v1.2.3 -> 1.2.3
+            echo "tag=$tag" >> $GITHUB_OUTPUT
+
+      - run: |
+          echo "dirs=${{ steps.matrix.outputs.dirs }}"
+          echo "tag=${{ steps.vars.outputs.tag }}"
+
+  build:
+    needs: [ setup ]
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        dirs: ${{ fromJSON(needs.setup.outputs.dirs) }}
+
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v4
+
+    - name: Login to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: "${{ secrets.DOCKERHUB_USERNAME }}"
+        password: "${{ secrets.DOCKERHUB_TOKEN }}"
+
+    - name: Build the Docker image
+      run: |
+        set -euox pipefail
+        export BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+        [ -f docker/docker-compose.yml ] && docker compose -f ./docker/docker-compose.yml build --pull
+      working-directory: ${{ matrix.dirs }}
+      env:
+        TAG: ${{ needs.setup.outputs.tag }}
+
+    - name: Publish the Docker image
+      run: |
+        set -euox pipefail
+        [ -f docker/docker-compose.yml ] && docker compose -f ./docker/docker-compose.yml push
+      working-directory: ${{ matrix.dirs }}
+      env:
+        TAG: ${{ needs.setup.outputs.tag }}
