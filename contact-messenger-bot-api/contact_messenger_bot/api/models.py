@@ -1,13 +1,40 @@
-import datetime
-import random
-from enum import IntEnum, auto
-from typing import Final, NamedTuple
+from __future__ import annotations
 
-from contact_messenger_bot.api import messaging
-from contact_messenger_bot.api.contacts import constants
-from contact_messenger_bot.api.contacts.messages import anniversary, birthday
+import random
+from collections.abc import Iterable
+from enum import Enum, EnumMeta, IntEnum, auto, unique
+from typing import TYPE_CHECKING, Any, Final, NamedTuple, cast
+
+from contact_messenger_bot.api import constants
+from contact_messenger_bot.api.messages import anniversary, birthday
+from contact_messenger_bot.api.services import messaging
+
+if TYPE_CHECKING:
+    import datetime
 
 _RANDOM: Final[random.Random] = random.Random()  # noqa: S311
+
+
+class _CaseInsensitiveEnumMeta(EnumMeta):
+    def __call__(cls, value: str, *args: list[Any], **kwargs: Any) -> type[Enum]:  # noqa: ANN401
+        try:
+            return super().__call__(value, *args, **kwargs)
+        except ValueError:
+            items = cast(Iterable[Enum], cls)
+            for item in items:
+                if item.name.casefold() == value.casefold():
+                    return cast(type[Enum], item)
+            raise
+
+
+class Coordinate(NamedTuple):
+    latitude: float
+    longitude: float
+
+
+@unique
+class Country(str, Enum, metaclass=_CaseInsensitiveEnumMeta):
+    US = "US"
 
 
 class DateType(IntEnum):
@@ -45,6 +72,8 @@ class Contact(NamedTuple):
     display_name: str
     mobile_number: str
     dates: list[DateTuple]
+    home_postal_code: str | None
+    tz: datetime.tzinfo | None
 
     def send_message(self) -> None:
         send_dates = (dt for dt in self.dates if dt.is_today())

@@ -2,11 +2,9 @@ from __future__ import annotations
 
 import logging
 import tempfile
-from functools import cache, wraps
+from functools import wraps
 from pathlib import Path
 from typing import TYPE_CHECKING, Callable, TypeVar
-
-import google.cloud.storage as storage  # noqa: PLR0402
 
 from contact_messenger_bot.functions import constants, gcs
 
@@ -16,12 +14,6 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 RetType = TypeVar("RetType")
-
-
-@cache
-def get_bucket() -> storage.Bucket:
-    client = storage.Client()
-    return client.bucket(constants.GCS_BUCKET)
 
 
 def authenticated(
@@ -37,7 +29,7 @@ def authenticated(
 
     @wraps(func)
     def with_credentials(request: flask.Request) -> RetType:
-        bucket = get_bucket()
+        bucket = gcs.get_bucket()
         with (
             tempfile.TemporaryDirectory() as temp,
             gcs.download(Path(temp), bucket, constants.CREDENTIALS_FILE) as credentials_file,

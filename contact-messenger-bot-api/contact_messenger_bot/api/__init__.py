@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import importlib.metadata
 
-from contact_messenger_bot.api import contacts, messaging
+from contact_messenger_bot.api import constants, oauth2, services
 
 # set the version number within the package using importlib
 try:
@@ -12,4 +12,4 @@ except importlib.metadata.PackageNotFoundError:
     __version__ = None
 
 
-__all__ = ["__version__", "contacts", "messaging"]
+__all__ = ["__version__", "constants", "oauth2", "services"]
