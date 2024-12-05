@@ -6,8 +6,8 @@ from typing import TYPE_CHECKING, TypeVar
 
 import functions_framework
 
-from contact_messenger_bot.api import contacts
-from contact_messenger_bot.functions import credentials
+from contact_messenger_bot.api import oauth2, services
+from contact_messenger_bot.functions import constants, credentials, gcs
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -31,13 +31,18 @@ def get_contacts(request: flask.Request, credentials_file: Path, token_file: Pat
     Returns:
         A flask.Response
     """
-    assert credentials_file is not None
-    contact_lst = contacts.service.get_contacts(credentials_file, token_file)
+    with (
+        gcs.download(credentials_file.parent, gcs.get_bucket(), constants.ZIP_CODE_CACHE_FILE) as zip_code_cache,
+        services.ZipCode(zip_code_cache) as zipcode_svc,
+    ):
+        creds = oauth2.CredentialsManager(credentials_file, token_file)
+        contact_svc = services.Contacts(creds, zipcode_svc)
+        contact_lst = contact_svc.get_contacts()
 
-    for contact in contact_lst:
-        logger.info("%s - %s %s", contact.display_name, contact.mobile_number, contact.dates)
+        for contact in contact_lst:
+            contact.send_message()
 
-    return flask.make_response("", HTTPStatus.NO_CONTENT)
+        return flask.make_response("", HTTPStatus.NO_CONTENT)
 
 
 @functions_framework.http
@@ -52,10 +57,15 @@ def send_messages(request: flask.Request, credentials_file: Path, token_file: Pa
     Returns:
         A flask.Response
     """
-    assert credentials_file is not None
-    contact_lst = contacts.service.get_contacts(credentials_file, token_file)
+    with (
+        gcs.download(credentials_file.parent, gcs.get_bucket(), constants.ZIP_CODE_CACHE_FILE) as zip_code_cache,
+        services.ZipCode(zip_code_cache) as zipcode_svc,
+    ):
+        creds = oauth2.CredentialsManager(credentials_file, token_file)
+        contact_svc = services.Contacts(creds, zipcode_svc)
+        contact_lst = contact_svc.get_contacts()
 
-    for contact in contact_lst:
-        contact.send_message()
+        for contact in contact_lst:
+            contact.send_message()
 
-    return flask.make_response("", HTTPStatus.NO_CONTENT)
+        return flask.make_response("", HTTPStatus.NO_CONTENT)

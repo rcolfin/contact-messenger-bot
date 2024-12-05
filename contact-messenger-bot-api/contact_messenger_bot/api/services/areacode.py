@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Final
 
-from contact_messenger_bot.api.contacts import utils
+from contact_messenger_bot.api import utils
 
 AREA_CODES: Final[dict[str, dict[str, str]]] = {
     "+7 840": {"country": "Abkhazia"},

@@ -15,6 +15,7 @@ google-cloud-logging = "^3.11.3"
 google-cloud-storage = "^2.18.2"
 gunicorn = "^23.0.0"
 contact-messenger-bot-api = {path = "../contact-messenger-bot-api"}
+click = "^8.1.7"
 
 [tool.poetry.group.dev.dependencies]
 mypy = "^1.11.2"
