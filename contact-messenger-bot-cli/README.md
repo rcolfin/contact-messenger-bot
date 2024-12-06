@@ -4,11 +4,21 @@ CLI for interacting with the [contact-messenger-bot-api](../contact-messenger-bo
 
 For example: Bot to send text messages to Google Contacts for birthday's and anniversaries.
 
-```sh
-python -m contact_messenger_bot.cli list-contacts
-```
+# Development
 
-To copy the secrets locally:
+# Setup Python Environment:
+
+Run [scripts/console.sh](../scripts/console.sh) poetry install
+
+## If you need to relock:
+
+Run [scripts/lock.sh](../scripts/lock.sh)
+
+# Run code
+
+Run [scripts/console.sh](../scripts/console.sh) poetry run python -m contact_messenger_bot.cli list-contacts
+
+# Copy secrets locally
 
 ```sh
 gcloud storage cp gcs://contact-messenger-4ed7624155de0493/* .
