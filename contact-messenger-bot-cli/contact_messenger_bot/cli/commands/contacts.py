@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
 import asyncclick as click
@@ -10,9 +11,17 @@ from contact_messenger_bot.cli.commands import constants
 from contact_messenger_bot.cli.commands.common import cli
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
     from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+
+@contextmanager
+def contact_service(credentials: Path, token: Path, zip_code_cache: Path) -> Generator[services.Contacts, None, None]:
+    with services.ZipCode(zip_code_cache) as zipcode_svc:
+        creds = oauth2.CredentialsManager(credentials, token)
+        yield services.Contacts(creds, zipcode_svc)
 
 
 @cli.command("message-contacts")
@@ -38,9 +47,7 @@ logger = logging.getLogger(__name__)
     help="The path to the zip code cache",
 )
 async def message_contacts(credentials: Path, token: Path, zip_code_cache: Path) -> None:
-    with services.ZipCode(zip_code_cache) as zipcode_svc:
-        creds = oauth2.CredentialsManager(credentials, token)
-        contact_svc = services.Contacts(creds, zipcode_svc)
+    with contact_service(credentials, token, zip_code_cache) as contact_svc:
         contact_lst = contact_svc.get_contacts()
 
         for contact in contact_lst:
@@ -81,9 +88,7 @@ async def message_contacts(credentials: Path, token: Path, zip_code_cache: Path)
     help="The path to the zip code cache",
 )
 async def list_contacts(credentials: Path, token: Path, zip_code_cache: Path) -> None:
-    with services.ZipCode(zip_code_cache) as zipcode_svc:
-        creds = oauth2.CredentialsManager(credentials, token)
-        contact_svc = services.Contacts(creds, zipcode_svc)
+    with contact_service(credentials, token, zip_code_cache) as contact_svc:
         contact_lst = contact_svc.get_contacts()
 
         for contact in contact_lst:
