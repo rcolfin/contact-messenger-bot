@@ -18,6 +18,8 @@ backoff = "^2.2.1"
 twilio = "^9.3.7"
 timezonefinder = "^6.5.7"
 pytz = "^2024.2"
+pydantic = "^2.10.3"
+pydantic-settings = "^2.6.1"
 
 [tool.poetry.group.dev.dependencies]
 mypy = "^1.11.2"
@@ -139,7 +141,7 @@ ignore = [
   "S101", # Use of assert detected https://docs.astral.sh/ruff/rules/assert/
   "RUF012", # Mutable class attributes should be annotated with `typing.ClassVar`
   "SIM102", # sometimes it's better to nest
-  "UP038" # Checks for uses of isinstance/issubclass that take a tuple
+  "UP038", # Checks for uses of isinstance/issubclass that take a tuple
           # of types for comparison.
           # Deactivated because it can make the code slow:
           # https://github.com/astral-sh/ruff/issues/7871

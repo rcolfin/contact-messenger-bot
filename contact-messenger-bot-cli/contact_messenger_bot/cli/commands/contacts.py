@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import datetime
 import logging
 from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
 import asyncclick as click
 
+from contact_messenger_bot.api import constants as api_constants
 from contact_messenger_bot.api import oauth2, services
 from contact_messenger_bot.cli.commands import constants
 from contact_messenger_bot.cli.commands.common import cli
@@ -46,23 +48,20 @@ def contact_service(credentials: Path, token: Path, zip_code_cache: Path) -> Gen
     default=constants.ZIP_CODE_CACHE_FILE,
     help="The path to the zip code cache",
 )
-async def message_contacts(credentials: Path, token: Path, zip_code_cache: Path) -> None:
+@click.option(
+    "--today",
+    type=str,
+    default=api_constants.TODAY.strftime(constants.DATETIME_FMT),
+    help="Todays's date",
+)
+@click.option("--groups", type=str, help="The contact groups (comma separated).")
+async def message_contacts(credentials: Path, token: Path, zip_code_cache: Path, today: str, groups: str) -> None:
+    today_dt = datetime.datetime.strptime(today, constants.DATETIME_FMT).date()  # noqa: DTZ007
     with contact_service(credentials, token, zip_code_cache) as contact_svc:
+        profile = contact_svc.get_profile()
         contact_lst = contact_svc.get_contacts()
-
-        for contact in contact_lst:
-            logger.info("%s - %s %s", contact.display_name, contact.mobile_number, contact.dates)
-
-        for contact in contact_lst:
-            for dt_type, date in contact.dates:
-                logger.info(
-                    "Send text to %s, on %s with %s",
-                    contact.mobile_number,
-                    date,
-                    dt_type.format(contact.given_name),
-                )
-
-            logger.debug("%s - %s %s", contact.display_name, contact.mobile_number, contact.dates)
+        msg_svc = services.Messaging(profile, today_dt, groups=groups.split(","))
+        msg_svc.send_messages(contact_lst)
 
 
 @cli.command("list-contacts")
@@ -92,4 +91,4 @@ async def list_contacts(credentials: Path, token: Path, zip_code_cache: Path) ->
         contact_lst = contact_svc.get_contacts()
 
         for contact in contact_lst:
-            logger.info("%s - %s %s", contact.display_name, contact.mobile_number, contact.dates)
+            logger.info("%s - %s %s", contact.display_name, contact.mobile_numbers, contact.dates)

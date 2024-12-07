@@ -10,7 +10,7 @@ from googleapiclient.discovery import Resource, build
 from googleapiclient.errors import HttpError
 from googleapiclient.http import HttpRequest
 
-from contact_messenger_bot.api import constants, models, utils
+from contact_messenger_bot.api import constants, models
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -23,9 +23,15 @@ logger = logging.getLogger(__name__)
 
 
 class Contacts:
-    SCOPES: Final[list[str]] = ["https://www.googleapis.com/auth/contacts.readonly"]
-    FIELDS: Final[str] = (
+    SCOPES: Final[list[str]] = [
+        "https://www.googleapis.com/auth/contacts.readonly",
+        "https://www.googleapis.com/auth/userinfo.profile",
+    ]
+    CONTACT_FIELDS: Final[str] = (
         "names,emailAddresses,phoneNumbers,birthdays,events,userDefined,addresses"  # see https://developers.google.com/people/api/rest/v1/people
+    )
+    PROFILE_FIELDS: Final[str] = (
+        "names,emailAddresses,phoneNumbers"  # see https://developers.google.com/people/api/rest/v1/people
     )
     PEOPLE_API_RESOURCE: Final[str] = "people/me"
     MAX_PAGE_SIZE: Final[int] = 100
@@ -42,11 +48,24 @@ class Contacts:
     def get_groups(self) -> list[models.ContactGroup]:
         return list(self._get_groups())
 
+    def get_profile(self) -> models.Profile:
+        return self._get_profile()
+
+    @backoff.on_exception(backoff.expo, google.auth.exceptions.RefreshError, max_tries=constants.MAX_RETRY)
+    def _get_profile(self) -> models.Profile:
+        resource = self._create_resource()
+        profile = self._query_profile(resource, self.PROFILE_FIELDS)
+        profile_name = self._get_name(profile)
+        assert profile_name is not None
+        mobile_number = next(filter(lambda x: x.is_primary, self._get_mobile_numbers(profile)))
+        email_address = next(filter(lambda x: x.is_primary, self._get_email_addresses(profile)))
+        return models.Profile(profile_name[0], profile_name[1], mobile_number, email_address)
+
     @backoff.on_exception(backoff.expo, google.auth.exceptions.RefreshError, max_tries=constants.MAX_RETRY)
     def _get_contacts(self) -> Iterable[models.Contact]:
-        service = self._create_service()
-        groups = self._query_groups(service)
-        contacts = self._query_contacts(service, self.FIELDS)
+        resource = self._create_resource()
+        groups = self._query_groups(resource)
+        contacts = self._query_contacts(resource, self.CONTACT_FIELDS)
         for contact in contacts:
             name = self._get_name(contact)
             if name is None:
@@ -55,39 +74,41 @@ class Contacts:
             given_name, display_name = name
             logger.debug("Processing %s...", display_name)
 
-            home_postal_code = self._get_home_postal_code(contact)
-            mobile_number = self._get_us_mobile_number(contact)
-            if mobile_number is None:
-                continue
-
+            home_addresses = self._get_home_addresses(contact)
+            mobile_numbers = self._get_mobile_numbers(contact)
+            email_addresses = self._get_email_addresses(contact)
             dates = self._get_dates(contact)
-            if not dates:
-                continue
-
-            assert utils.is_us_phone_number(mobile_number)
-
             resource_name = contact["resourceName"]
             membership = [g for g in groups if resource_name in g.members]
-            tz = self.zipcode.get_timezone(models.Country.US, home_postal_code) if home_postal_code else None
             metadata = {ud["key"]: ud["value"] for ud in contact["userDefined"]} if "userDefined" in contact else {}
             yield models.Contact(
-                given_name, display_name, mobile_number, dates, home_postal_code, tz, membership, metadata
+                given_name,
+                display_name,
+                mobile_numbers,
+                dates,
+                home_addresses,
+                email_addresses,
+                membership,
+                metadata,
             )
 
     @backoff.on_exception(backoff.expo, google.auth.exceptions.RefreshError, max_tries=constants.MAX_RETRY)
     def _get_groups(self) -> list[models.ContactGroup]:
-        service = self._create_service()
-        return self._query_groups(service)
+        resource = self._create_resource()
+        return self._query_groups(resource)
 
     @backoff.on_exception(backoff.expo, AttributeError, max_tries=constants.MAX_RETRY)
-    def _create_service(self) -> Resource:
+    def _create_resource(self) -> Resource:
         return build(
             "people", "v1", credentials=self.creds.create_oauth_credentials(self.SCOPES), cache_discovery=False
         )
 
-    def _query_contacts(self, service: Resource, fields: str) -> Iterable[dict[str, Any]]:
+    def _query_profile(self, resource: Resource, fields: str) -> dict[str, Any]:
+        return resource.people().get(resourceName=self.PEOPLE_API_RESOURCE, personFields=fields).execute()
+
+    def _query_contacts(self, resource: Resource, fields: str) -> Iterable[dict[str, Any]]:
         return self._get_pages(
-            service.people().connections(),
+            resource.people().connections(),
             "connections",
             resourceName=self.PEOPLE_API_RESOURCE,
             pageSize=self.MAX_PAGE_SIZE,
@@ -95,10 +116,10 @@ class Contacts:
             sortOrder=models.SortOrder.FIRST_NAME_ASCENDING.value,
         )
 
-    def _query_groups(self, service: Resource) -> list[models.ContactGroup]:
+    def _query_groups(self, resource: Resource) -> list[models.ContactGroup]:
         def get() -> Iterable[models.ContactGroup]:
             groups = self._get_pages(
-                service.contactGroups(), "contactGroups", pageSize=self.MAX_PAGE_SIZE, groupFields=self.GROUP_FIELDS
+                resource.contactGroups(), "contactGroups", pageSize=self.MAX_PAGE_SIZE, groupFields=self.GROUP_FIELDS
             )
 
             for group in groups:
@@ -110,7 +131,7 @@ class Contacts:
                 if name.casefold() in self.BUILT_IN_GROUPS:
                     continue  # ignore
 
-                member_request = service.contactGroups().get(
+                member_request = resource.contactGroups().get(
                     resourceName=group["resourceName"], maxMembers=member_count
                 )
                 resp = self._execute_with_retry(member_request)
@@ -125,7 +146,7 @@ class Contacts:
     def _execute_with_retry(request: HttpRequest) -> dict[str, Any]:
         return request.execute()
 
-    def _get_pages(self, service: Resource, select_key: str, **kwargs: Any) -> Iterable[Any]:  # noqa: ANN401
+    def _get_pages(self, resource: Resource, select_key: str, **kwargs: Any) -> Iterable[Any]:  # noqa: ANN401
         try:
             next_page_token: str | None = None
             start_idx = 0
@@ -133,7 +154,7 @@ class Contacts:
             while True:
                 request = cast(
                     HttpRequest,
-                    service.list(
+                    resource.list(
                         pageToken=next_page_token,
                         **kwargs,
                     ),
@@ -158,32 +179,46 @@ class Contacts:
             self.creds.invalidate_token()
             raise
 
-    def _get_us_mobile_number(self, contact: dict[str, Any]) -> str | None:
-        mobile_number = None
+    def _is_primary(self, container: dict[str, Any]) -> bool:
+        return container.get("metadata", {}).get("sourcePrimary", False)
+
+    def _get_mobile_numbers(self, contact: dict[str, Any]) -> list[models.PhoneNumber]:
+        mobile_numbers: list[models.PhoneNumber] = []
         for number in contact.get("phoneNumbers", []):
-            if number.get("type") != "mobile" or (
-                mobile_number and not number.get("metadata", {}).get("sourcePrimary", False)
-            ):
+            if number.get("type", "").casefold() != constants.MOBILE_LABEL:
                 continue
 
+            primary = self._is_primary(number)
             contact_number = number.get("canonicalForm")
             if contact_number is None:
                 display_name = cast(tuple[str, str], self._get_name(contact))[1]
                 logger.warning("%s has no canonical phone number.", display_name)
                 return number["value"].replace(" ", "")
 
-            if utils.is_us_phone_number(contact_number):
-                mobile_number = contact_number
+            mobile_numbers.append(models.PhoneNumber(contact_number, primary))
 
-        return mobile_number
+        return mobile_numbers
 
-    def _get_home_postal_code(self, contact: dict[str, Any]) -> str | None:
-        home_addresses = (
-            address.get("postalCode")
+    def _get_home_addresses(self, contact: dict[str, Any]) -> list[models.Address]:
+        return [
+            models.Address(address["postalCode"], self.zipcode.get_timezone(models.Country.US, address["postalCode"]))
             for address in contact.get("addresses", [])
-            if address.get("postalCode") and address.get("type") == "home"
-        )
-        return next(home_addresses, None)
+            if address.get("postalCode") and address.get("type", "").casefold() == constants.HOME_LABEL
+        ]
+
+    def _get_email_addresses(self, contact: dict[str, Any]) -> list[models.EmailAddress]:
+        addresses: list[models.EmailAddress] = []
+        for email_addresses in contact.get("emailAddresses", []):
+            email_address_type = email_addresses.get("type", "").casefold()
+            if email_address_type not in (constants.EMAIL_ADDRESS_LABELS):
+                continue
+
+            primary = self._is_primary(email_addresses)
+            address = email_addresses.get("value")
+            is_phone = email_address_type == constants.PHONE_LABEL
+            addresses.append(models.EmailAddress(address, primary, is_phone))
+
+        return addresses
 
     def _get_name(self, contact: dict[str, Any]) -> tuple[str, str] | None:
         if "names" not in contact:

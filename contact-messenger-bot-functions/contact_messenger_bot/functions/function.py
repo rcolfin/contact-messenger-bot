@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime
 import logging
 from contextlib import contextmanager
 from http import HTTPStatus
@@ -75,10 +76,13 @@ def send_messages(request: flask.Request, credentials_file: Path, token_file: Pa
     Returns:
         A flask.Response
     """
+    today = request.args.get("today")
+    groups = request.args.get("groups", "").split(",")
+    today_dt = datetime.datetime.strptime(today, constants.DATETIME_FMT).date() if today else None  # noqa: DTZ007
     with contact_service(credentials_file, token_file) as contact_svc:
+        profile = contact_svc.get_profile()
         contact_lst = contact_svc.get_contacts()
-
-        for contact in contact_lst:
-            contact.send_message()
+        msg_svc = services.Messaging(profile, today_dt, groups=groups)
+        msg_svc.send_messages(contact_lst)
 
         return flask.make_response("", HTTPStatus.NO_CONTENT)
