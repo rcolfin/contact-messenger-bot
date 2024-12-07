@@ -51,18 +51,18 @@ async def message_contacts(credentials: Path, token: Path, zip_code_cache: Path)
         contact_lst = contact_svc.get_contacts()
 
         for contact in contact_lst:
-            logger.info("%s - %s %s", contact.display_name, contact.mobile_number, contact.dates)
+            logger.info("%s - %s %s", contact.display_name, contact.mobile_numbers, contact.dates)
 
         for contact in contact_lst:
             for dt_type, date in contact.dates:
                 logger.info(
                     "Send text to %s, on %s with %s",
-                    contact.mobile_number,
+                    contact.mobile_numbers,
                     date,
                     dt_type.format(contact.given_name),
                 )
 
-            logger.debug("%s - %s %s", contact.display_name, contact.mobile_number, contact.dates)
+            logger.debug("%s - %s %s", contact.display_name, contact.mobile_numbers, contact.dates)
 
 
 @cli.command("list-contacts")
@@ -92,4 +92,4 @@ async def list_contacts(credentials: Path, token: Path, zip_code_cache: Path) ->
         contact_lst = contact_svc.get_contacts()
 
         for contact in contact_lst:
-            logger.info("%s - %s %s", contact.display_name, contact.mobile_number, contact.dates)
+            logger.info("%s - %s %s", contact.display_name, contact.mobile_numbers, contact.dates)

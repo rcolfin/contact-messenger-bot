@@ -81,14 +81,14 @@ class ZipCode:
         if self._cache_file is None:
             return
 
-        # Packs the cache from being a dict[tuple[str, str], datetime.tzinfo] -> dict[str, dict[str, str]]
-        save_cache: dict[str, dict[str, str]] = {}
+        # Packs the cache from being a dict[tuple[str, str], datetime.tzinfo] -> dict[str, dict[str, str | None]]
+        save_cache: dict[str, dict[str, str | None]] = {}
         for key, tz in self._cache.items():
             country, zip_code = key
             if country not in save_cache:
                 save_cache[country.value] = {}
 
-            save_cache[country][zip_code] = str(tz)
+            save_cache[country][zip_code] = str(tz) if tz is not None else None
 
         logger.debug("Saving %d items into cache %s.", len(self._cache), self._cache_file)
         self._cache_file.write_text(json.dumps(save_cache))
@@ -145,7 +145,7 @@ class ZipCode:
         for country, country_map in save_cache.items():
             for zip_code, tz in country_map.items():
                 key = Country(country), zip_code
-                cache[key] = pytz.timezone(tz)
+                cache[key] = pytz.timezone(tz) if tz is not None else None
 
         logger.debug("Read %d entries from %s.", len(cache), cache_file)
         return cache
@@ -161,14 +161,3 @@ class ZipCode:
         s.mount("http://", adapter)
         s.mount("https://", adapter)
         return s
-
-
-if __name__ == "__main__":
-    from pathlib import Path
-
-    logging.basicConfig(level=logging.INFO)
-    logger.setLevel(logging.DEBUG)
-
-    p = Path.cwd() / "zipcode.json"
-    with ZipCode(p) as zipcode:
-        logger.debug(zipcode.get_timezone("US", "20001"))

@@ -18,6 +18,8 @@ backoff = "^2.2.1"
 twilio = "^9.3.7"
 timezonefinder = "^6.5.7"
 pytz = "^2024.2"
+pydantic = "^2.10.3"
+pydantic-settings = "^2.6.1"
 
 [tool.poetry.group.dev.dependencies]
 mypy = "^1.11.2"

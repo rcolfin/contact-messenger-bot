@@ -1,3 +1,3 @@
-from contact_messenger_bot.api.services.messaging import sms
+from contact_messenger_bot.api.services.messaging import text
 
-__all__ = ["sms"]
+__all__ = ["text"]
