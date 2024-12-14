@@ -39,10 +39,14 @@ def is_supported() -> bool:
     return bool(settings.text and settings.text.auth)
 
 
-def send_message(sender: PhoneNumber, to: PhoneNumber, body: str) -> None:
+def send_message(sender: PhoneNumber, to: PhoneNumber, body: str, dry_run: bool) -> None:
     """Sends a text message to the recipient."""
     if is_supported():
         logger.warning("Text not supported")
+        return
+
+    if dry_run:
+        logger.info("Sending message to=%s, from=%s, body=%s [dry-run]", to, sender, body)
         return
 
     assert settings.text is None

@@ -43,12 +43,12 @@ class CredentialsManager:
         creds = None
         if self._token_file.exists():
             with contextlib.suppress(ValueError):
-                logger.debug("Authenticating %s", self._token_file)
+                logger.info("Authenticating %s", self._token_file)
                 creds = self._wrap_creds(Credentials.from_authorized_user_file(str(self._token_file), scopes))
 
         if not creds or not creds.valid:
             if creds and creds.expired and creds.refresh_token:
-                logger.debug("Refreshing credentials")
+                logger.info("Refreshing credentials")
                 creds.refresh(Request())
             else:
                 flow = InstalledAppFlow.from_client_secrets_file(str(self._creds_file), scopes)
@@ -65,6 +65,8 @@ class CredentialsManager:
 
         @wraps(creds.refresh)
         def refresh(request: Request) -> None:
+            if self._token_file.exists():
+                logger.info("Removing %s", self._token_file)
             refresh_orig(request)
             save_token()
 

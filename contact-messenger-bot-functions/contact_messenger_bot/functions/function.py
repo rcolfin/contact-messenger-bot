@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 
 import functions_framework
 
-from contact_messenger_bot.api import oauth2, services
+from contact_messenger_bot.api import oauth2, services, utils
 from contact_messenger_bot.functions import constants, credentials, gcs
 
 if TYPE_CHECKING:
@@ -78,13 +78,14 @@ def send_messages(request: flask.Request, credentials_file: Path, token_file: Pa
     """
     today = request.args.get("today")
     groups = [g for g in request.args.get("groups", "").split(",") if g]
-    logger.info("send_messages invoked with today=%s, groups=%s", today, groups)
+    dry_run = utils.is_truthy(request.args.get("dry-run"))
+    logger.info("send_messages invoked with today=%s, groups=%s, dry_run=%s", today, groups, dry_run)
 
     today_dt = datetime.datetime.strptime(today, constants.DATETIME_FMT).date() if today else None  # noqa: DTZ007
     with contact_service(credentials_file, token_file) as contact_svc:
         profile = contact_svc.get_profile()
         contact_lst = contact_svc.get_contacts(groups=groups)
         msg_svc = services.Messaging(profile, groups=groups)
-        msg_svc.send_messages(contact_lst, today_dt)
+        msg_svc.send_messages(contact_lst, today_dt, dry_run=dry_run)
 
         return flask.make_response("", HTTPStatus.NO_CONTENT)

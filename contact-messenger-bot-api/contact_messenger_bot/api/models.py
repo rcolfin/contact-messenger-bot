@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import random
+from abc import ABC, abstractmethod
 from collections.abc import Iterable
 from enum import Enum, EnumMeta, IntEnum, auto, unique
+from functools import cache
 from typing import TYPE_CHECKING, Any, Final, NamedTuple, cast
 
-from contact_messenger_bot.api import constants, utils
+from contact_messenger_bot.api import utils
 from contact_messenger_bot.api.messages import anniversary, birthday
 
 if TYPE_CHECKING:
@@ -83,9 +85,9 @@ class DateTuple(NamedTuple):
     def __repr__(self) -> str:
         return f"{self.date} ({self.type.name})"
 
-    def is_today(self, today: datetime.date) -> bool:
+    def is_today(self, test: datetime.date) -> bool:
         """Determines if the date is today."""
-        return today.month == self.date.month and today.day == self.date.day
+        return test.month == self.date.month and test.day == self.date.day
 
 
 class Address(NamedTuple):
@@ -107,6 +109,10 @@ class Contact(NamedTuple):
     def __repr__(self) -> str:
         return self.display_name
 
+    def can_notify_today(self, test: datetime.date) -> bool:
+        """Determines whether this Contact has notifications today."""
+        return any(dt.is_today(test) for dt in self.dates)
+
     def is_member(self, groups: frozenset[str]) -> bool:
         """Determines if this Contact is a member of one of the specified groups."""
         return any(x.name.casefold() in groups for x in self.groups)
@@ -119,9 +125,9 @@ class Contact(NamedTuple):
     @property
     def opt_out_messages(self) -> bool:
         """Gets a value indicating whether this contact has opt out to receiving messages."""
-        return self.metadata.get(CustomFields.BOT_OPT_OUT, "").casefold() in constants.TRUTHY
+        return utils.is_truthy(self.metadata.get(CustomFields.BOT_OPT_OUT))
 
-    def get_mobile_email_address(self) -> EmailAddress | None:
+    def get_primary_mobile_email_address(self) -> EmailAddress | None:
         """Gets the email address associated with the contact's phone number."""
         mobile_email_addresses = [n for n in self.email_addresses if n.is_phone]
         if not mobile_email_addresses:
@@ -136,8 +142,20 @@ class Contact(NamedTuple):
 
     def get_us_mobile_number(self) -> PhoneNumber | None:
         """Gets the mobile number that can receive SMS messages."""
-        us_mobile_numbers = (n for n in self.mobile_numbers if n.is_us_phone_number())
+        us_mobile_numbers = (n for n in self.mobile_numbers if n.country() == Country.US)
         return next(us_mobile_numbers, None)
+
+    def get_all_mobile_email_addresses(self) -> list[EmailAddress]:
+        """Gets the possible email addresses for the phone carriers that match the mobile number associated."""
+        mobile_email_addresses = ((n.is_primary, n.get_email_addresses()) for n in self.mobile_numbers)
+        mobile_email_addresses_lst = [(is_primary, ea) for is_primary, ea in mobile_email_addresses if ea]
+        if not mobile_email_addresses_lst:
+            return []
+
+        r = next((ea for is_primary, ea in mobile_email_addresses_lst if is_primary), None)
+        if r:
+            return r
+        return next((ea for _is_primary, ea in mobile_email_addresses_lst), [])
 
 
 class Profile(NamedTuple):
@@ -159,12 +177,78 @@ class PhoneNumber(NamedTuple):
     number: str
     is_primary: bool
 
-    def is_us_phone_number(self) -> bool:
-        """Determines if the number is a US phone number."""
-        return utils.is_us_phone_number(self.number)
+    def country(self) -> Country | None:
+        """Determines if the Country of the number."""
+        return Country.US if utils.is_us_phone_number(self.number) else None
+
+    def shortnumber(self) -> str:
+        """Gets the short representation of the phone number."""
+        if self.country() == Country.US:
+            return self.number.replace("-", "")[-10:]
+        return self.number
+
+    def get_email_addresses(self) -> list[EmailAddress]:
+        """Gets the list of email addresses associated with phone carriers in the same Country as the number."""
+        addresses = (carrier.get_email(self) for carrier in MobileCarrier.get_carriers())
+        return [
+            EmailAddress(address, is_primary=self.is_primary, is_phone=True)
+            for address in addresses
+            if address is not None
+        ]
 
 
 class EmailAddress(NamedTuple):
     address: str
     is_primary: bool
     is_phone: bool
+
+
+class MobileCarrier(ABC):
+    def __repr__(self) -> str:
+        return self.__class__.__name__
+
+    @property
+    @abstractmethod
+    def country(self) -> Country:
+        pass
+
+    @abstractmethod
+    def get_email(self, number: PhoneNumber) -> str | None:
+        pass
+
+    @staticmethod
+    @cache
+    def get_carriers() -> list[MobileCarrier]:
+        return [x() for x in utils.get_all_subclasses(MobileCarrier)]
+
+
+class USMobileCarrier(MobileCarrier):
+    @property
+    def country(self) -> Country:
+        return Country.US
+
+    @property
+    @abstractmethod
+    def _format(self) -> str:
+        pass
+
+    def get_email(self, number: PhoneNumber) -> str | None:
+        if number.country() == self.country:
+            return self._format.format(number.shortnumber())
+        return None
+
+
+class ATT(USMobileCarrier):
+    _format: Final[str] = "{}@txt.att.net"
+
+
+class GoogleFi(USMobileCarrier):
+    _format: Final[str] = "{}@msg.fi.google.com"
+
+
+class TMobile(USMobileCarrier):
+    _format: Final[str] = "{}@tmomail.com"
+
+
+class Verison(USMobileCarrier):
+    _format: Final[str] = "{}@vtext.com"

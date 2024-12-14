@@ -54,15 +54,23 @@ def contact_service(credentials: Path, token: Path, zip_code_cache: Path) -> Gen
     default=api_constants.TODAY.strftime(constants.DATETIME_FMT),
     help="Todays's date",
 )
-@click.option("--groups", type=str, help="The contact groups (comma separated).")
-async def message_contacts(credentials: Path, token: Path, zip_code_cache: Path, today: str, groups: str) -> None:
+@click.option(
+    "--dry-run",
+    type=bool,
+    is_flag=True,
+    help="Enable dry-run mode",
+)
+@click.option("--groups", type=str, default="", help="The contact groups (comma separated).")
+async def message_contacts(  # noqa: PLR0913
+    credentials: Path, token: Path, zip_code_cache: Path, today: str, groups: str, dry_run: bool
+) -> None:
     today_dt = datetime.datetime.strptime(today, constants.DATETIME_FMT).date()  # noqa: DTZ007
     group_lst = [g for g in groups.split(",") if g]
     with contact_service(credentials, token, zip_code_cache) as contact_svc:
         profile = contact_svc.get_profile()
         contact_lst = contact_svc.get_contacts(groups=group_lst)
         msg_svc = services.Messaging(profile, groups=group_lst)
-        msg_svc.send_messages(contact_lst, today_dt)
+        msg_svc.send_messages(contact_lst, today_dt, dry_run=dry_run)
 
 
 @cli.command("list-contacts")

@@ -21,5 +21,5 @@ Run [scripts/console.sh](../scripts/console.sh) poetry run python -m contact_mes
 # Copy secrets locally
 
 ```sh
-gcloud storage cp gcs://contact-messenger-4ed7624155de0493/* .
+gcloud storage cp gs://contact-messenger-4ed7624155de0493/* .
 ```

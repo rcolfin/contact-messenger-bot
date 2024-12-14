@@ -4,7 +4,11 @@
             "name": "Python Debugger: Python File",
             "type": "debugpy",
             "request": "launch",
-            "program": "${file}"
+            "program": "${file}",
+            "env": {
+                "EMAIL__AUTH__USER": "EMAIL__AUTH__USER",
+                "EMAIL__AUTH__PASSWORD": "EMAIL__AUTH__PASSWORD"
+            }
         },
         {
             "name": "Python Module: Python File",
