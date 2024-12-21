@@ -163,6 +163,6 @@ cython_debug/
 
 token.json
 credentials.json
-zip-code-cache.json
+zip_code_cache.json
 test.sh
 contact-messenger-bot-api/contact_messenger_bot/api/__main__.py
