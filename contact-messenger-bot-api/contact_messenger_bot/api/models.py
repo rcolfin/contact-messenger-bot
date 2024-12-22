@@ -103,7 +103,7 @@ class Contact(NamedTuple):
     dates: list[DateTuple]
     home_addresses: list[Address]
     email_addresses: list[EmailAddress]
-    groups: list[ContactGroup]
+    groups: list[str]
     metadata: dict[str, Any]
 
     def __repr__(self) -> str:
@@ -115,7 +115,7 @@ class Contact(NamedTuple):
 
     def is_member(self, groups: frozenset[str]) -> bool:
         """Determines if this Contact is a member of one of the specified groups."""
-        return any(x.name.casefold() in groups for x in self.groups)
+        return bool(groups.intersection(g.casefold() for g in self.groups))
 
     @property
     def saluation(self) -> str:

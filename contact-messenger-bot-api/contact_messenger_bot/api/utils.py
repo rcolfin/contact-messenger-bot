@@ -33,11 +33,12 @@ def get_all_subclasses(class_type: type) -> Iterable[type]:
         yield from get_all_subclasses(subclass)
 
 
-def is_truthy(value: str | None) -> bool:
+def is_truthy(value: str | None, default: bool = False) -> bool:
     """
     Determines if the value is considered True.
     Args:
         value (str | None): The value.
+        default (bool): The default value to return if value is None.
     Returns:
         True or False
 
@@ -49,6 +50,8 @@ def is_truthy(value: str | None) -> bool:
     True
     >>> is_truthy(None)
     False
+    >>> is_truthy(None, True)
+    True
     >>> is_truthy("False")
     False
     >>> is_truthy("false")
@@ -56,4 +59,6 @@ def is_truthy(value: str | None) -> bool:
     >>> is_truthy("0")
     False
     """
-    return value is not None and value.casefold() in constants.TRUTHY
+    if value is None:
+        return default
+    return value.casefold() in constants.TRUTHY

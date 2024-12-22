@@ -3,6 +3,7 @@ from __future__ import annotations
 import contextlib
 import json
 import logging
+from pathlib import Path
 from typing import TYPE_CHECKING, Self
 
 import pytz
@@ -15,7 +16,7 @@ from contact_messenger_bot.api.models import Coordinate, Country
 
 if TYPE_CHECKING:
     import datetime
-    from pathlib import Path
+    from os import PathLike
     from types import TracebackType
 
 logger = logging.getLogger(__name__)
@@ -31,9 +32,9 @@ class ZipCode:
     America/New_York
     """
 
-    def __init__(self, cache_file: Path | None = None, retry_count: int = 3) -> None:
-        self._cache_file = cache_file
-        self._cache: dict[tuple[Country, str], datetime.tzinfo | None] = self._load_cache(cache_file)
+    def __init__(self, cache_file: PathLike | None = None, retry_count: int = 3) -> None:
+        self._cache_file = Path(cache_file) if cache_file is not None else None
+        self._cache: dict[tuple[Country, str], datetime.tzinfo | None] = self._load_cache(self._cache_file)
         self._timezone_finder = TimezoneFinder()
         self._sesson = self._create_session(retry_count=retry_count)
         self._is_dirty = False
