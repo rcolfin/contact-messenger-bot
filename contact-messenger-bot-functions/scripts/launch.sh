@@ -12,18 +12,18 @@ if [ ! -f credentials.json ] || [ ! -f token.json ] || [ ! -f zip_code_cache.jso
     gcloud storage cp gs://contact-messenger-4ed7624155de0493/*.json .
 fi
 
-BEFORE_CREDENTIALS=$(stat --format '%Z' credentials.json)
-BEFORE_TOKEN=$(stat --format '%Z' token.json)
-BEFORE_ZIP_CODE_CACHE=$(stat --format '%Z' zip_code_cache.json)
+BEFORE_CREDENTIALS=$(stat -f "%m" -t '%Z' credentials.json)
+BEFORE_TOKEN=$(stat -f "%m" -t '%Z' token.json)
+BEFORE_ZIP_CODE_CACHE=$(stat -f "%m" -t '%Z' zip_code_cache.json)
 
 # shellcheck disable=SC1091
 source "${SCRIPT_PATH}/secrets.sh"
 
 python -m contact_messenger_bot.functions "${@}"
 
-AFTER_CREDENTIALS=$(stat --format '%Z' credentials.json)
-AFTER_TOKEN=$(stat --format '%Z' token.json)
-AFTER_ZIP_CODE_CACHE=$(stat --format '%Z' zip_code_cache.json)
+AFTER_CREDENTIALS=$(stat -f "%m" -t '%Z' credentials.json)
+AFTER_TOKEN=$(stat -f "%m" -t '%Z' token.json)
+AFTER_ZIP_CODE_CACHE=$(stat -f "%m" -t '%Z' zip_code_cache.json)
 
 if [ "${AFTER_CREDENTIALS}" \> "${BEFORE_CREDENTIALS}" ]; then
     echo gcloud storage cp credentials.json gs://contact-messenger-4ed7624155de0493/
