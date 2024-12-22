@@ -68,6 +68,7 @@ class CredentialsManager:
         def refresh(request: Request) -> None:
             if self._token_file.exists():
                 logger.info("Removing %s", self._token_file)
+                self._token_file.unlink()
             refresh_orig(request)
             save_token()
 
