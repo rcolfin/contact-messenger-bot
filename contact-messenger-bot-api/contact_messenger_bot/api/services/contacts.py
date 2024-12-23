@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import datetime
 import logging
+import pickle
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Final, cast
 
 import backoff
@@ -13,6 +15,7 @@ from googleapiclient.http import HttpRequest
 from contact_messenger_bot.api import constants, models, utils
 
 if TYPE_CHECKING:
+    import os
     from collections.abc import Iterable
 
     from contact_messenger_bot.api import oauth2
@@ -38,18 +41,45 @@ class Contacts:
     BUILT_IN_GROUPS: Final[tuple[str, ...]] = ("all", "mycontacts")
     GROUP_FIELDS: Final[str] = "name,memberCount"
 
-    def __init__(self, creds: oauth2.CredentialsManager, zipcode: ZipCode) -> None:
+    def __init__(self, creds: oauth2.CredentialsManager, zipcode: ZipCode, cache: os.PathLike | None = None) -> None:
         self.creds = creds
         self.zipcode = zipcode
+        self.cache = Path(cache) if cache else None
 
-    def get_contacts(self, groups: Iterable[str] | None = None) -> Iterable[models.Contact]:
-        return list(self._get_contacts(utils.to_frozen_set(groups)))
+    def get_contacts(
+        self, groups: Iterable[str] | None = None, load_cache: bool = True, save_cache: bool = True
+    ) -> Iterable[models.Contact]:
+        groups = utils.to_frozen_set(groups)
+        if load_cache and self.cache is not None and self.cache.exists():
+            contacts = self._load_cache()[1]
+            if contacts is not None:
+                if groups:
+                    gcontacts = [c for c in contacts if c.is_member(groups)]
+                    logger.debug(
+                        "Filter on %s groups, reduced %d contacts to %d.", sorted(groups), len(contacts), len(gcontacts)
+                    )
+                    return gcontacts
+
+                return contacts
+
+        contacts = list(self._get_contacts(groups))
+        if save_cache and groups is None and self.cache is not None:
+            self._save_cache(contacts=contacts)
+        return contacts
 
     def get_groups(self, groups: Iterable[str] | None = None) -> list[models.ContactGroup]:
         return list(self._get_groups(utils.to_frozen_set(groups)))
 
-    def get_profile(self) -> models.Profile:
-        return self._get_profile()
+    def get_profile(self, load_cache: bool = True, save_cache: bool = True) -> models.Profile:
+        if load_cache and self.cache is not None and self.cache.exists():
+            profile = self._load_cache()[0]
+            if profile is not None:
+                return profile
+
+        profile = self._get_profile()
+        if save_cache and self.cache is not None:
+            self._save_cache(profile=profile)
+        return profile
 
     @backoff.on_exception(backoff.expo, google.auth.exceptions.RefreshError, max_tries=constants.MAX_RETRY)
     def _get_profile(self) -> models.Profile:
@@ -68,7 +98,7 @@ class Contacts:
         contacts = self._query_contacts(resource, self.CONTACT_FIELDS)
         for contact in contacts:
             resource_name = contact["resourceName"]
-            membership = [g for g in groups if resource_name in g.members]
+            membership = [g.name for g in groups if resource_name in g.members]
             if interested_groups is not None and not membership:
                 continue  # This contact is not a member of any of the Groups.
 
@@ -279,3 +309,50 @@ class Contacts:
         )
 
         return results
+
+    def _save_cache(
+        self,
+        profile: models.Profile | None = None,
+        contacts: list[models.Contact] | None = None,
+    ) -> None:
+        self._assert_cache_supported()
+        assert self.cache is not None
+
+        if profile is None and contacts is None:
+            return  # Nothing to persist.
+
+        payload: dict[str, Any] = {}
+        if self.cache.exists():
+            cache_profile, cache_contacts = self._load_cache()
+            if profile is None:
+                profile = cache_profile
+            if contacts is None:
+                contacts = cache_contacts
+
+        if profile is not None:
+            payload["profile"] = profile
+
+        if contacts is not None:
+            payload["contacts"] = list(contacts)
+
+        logger.info("Saving %s", self.cache)
+        with self.cache.open(mode="wb") as f:
+            pickle.dump(payload, f)
+
+    def _load_cache(self) -> tuple[models.Profile | None, list[models.Contact] | None]:
+        self._assert_cache_supported()
+        assert self.cache is not None
+
+        if not self.cache.is_file():
+            return None, None
+
+        logger.info("Loading %s", self.cache)
+        with self.cache.open(mode="rb") as f:
+            payload = pickle.load(f)  # noqa: S301
+
+        return payload.get("profile"), payload.get("contacts")
+
+    def _assert_cache_supported(self) -> None:
+        if self.cache is None:
+            msg = "Cache not supported"
+            raise ValueError(msg)
