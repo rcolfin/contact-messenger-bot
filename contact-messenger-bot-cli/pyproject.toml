@@ -2,10 +2,19 @@
 name = "contact-messenger-bot-cli"
 version = "0.1.0"
 description = ""
-authors = ["Robert Colfin <rcolfin@hotmail.com>"]
+authors = ["Robert Colfin <robert.m.colfin@gmail.com>"]
 readme = "README.md"
+license = "Apache"
 packages = [
     { include = "contact_messenger_bot/" }
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.13",
 ]
 
 [tool.poetry.dependencies]

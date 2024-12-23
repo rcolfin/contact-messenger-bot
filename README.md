@@ -1,6 +1,7 @@
 # contact-messenger-bot
 
 [![CI Build](https://github.com/rcolfin/contact-messenger-bot/actions/workflows/ci.yml/badge.svg)](https://github.com/rcolfin/contact-messenger-bot/actions/workflows/ci.yml)
+[![License](https://img.shields.io/github/license/rcolfin/contact-messenger-bot.svg)](https://github.com/rcolfin/contact-messenger-bot/LICENSE)
 
 Bot to send text messages to Google Contacts for birthday's and anniversaries.
 
