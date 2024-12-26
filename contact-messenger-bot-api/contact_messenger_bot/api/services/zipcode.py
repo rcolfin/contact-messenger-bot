@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import contextlib
 import json
-import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Self
 
 import pytz
 import requests
+import structlog
 from requests.adapters import HTTPAdapter
 from timezonefinder import TimezoneFinder
 from urllib3 import Retry
@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from os import PathLike
     from types import TracebackType
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class ZipCode:
@@ -62,7 +62,7 @@ class ZipCode:
         key = (country, zip_code)
         if key in self._cache:
             tz = self._cache[key]
-            logger.debug("Loaded %s for %s from cache.", tz, zip_code)
+            logger.debug("Loaded from cache.", tz=tz, zip_code=zip_code)
             return tz
 
         tz = self._lookup_timezone(country, zip_code)
@@ -91,7 +91,7 @@ class ZipCode:
 
             save_cache[country][zip_code] = str(tz) if tz is not None else None
 
-        logger.debug("Saving %d items into cache %s.", len(self._cache), self._cache_file)
+        logger.debug("Saving items to cache.", file=str(self._cache_file), length=len(self._cache))
         self._cache_file.write_text(json.dumps(save_cache))
 
     def _lookup_timezone(self, country: Country, zip_code: str) -> datetime.tzinfo | None:
@@ -104,7 +104,7 @@ class ZipCode:
             if zone is not None:
                 return pytz.timezone(zone)
 
-        logger.warning("No timezone found for zip-code: %s, coordinate: %s.", zip_code, coordinate)
+        logger.warning("No timezone found.", zip_code=zip_code, coordinate=coordinate)
         return None
 
     def _get_coordinate(
@@ -122,14 +122,14 @@ class ZipCode:
         url = f"https://api.zippopotam.us/{country.value.lower()}/{zip_code}"
         response = self._sesson.get(url, timeout=timeout)
         if not response.ok:
-            logger.warning("No coordinate found for %s.", zip_code)
+            logger.warning("No coordinate found.", zip_code=zip_code)
             return None
 
         places = response.json().get("places", [])
         locations = (Coordinate(float(place["latitude"]), float(place["longitude"])) for place in places)
         coordinate = next(locations, None)
         if coordinate is None:
-            logger.warning("No coordinate found for %s.", zip_code)
+            logger.warning("No coordinate found.", zip_code=zip_code)
         return coordinate
 
     @staticmethod
@@ -141,14 +141,14 @@ class ZipCode:
         if not cache_file.exists():
             return cache
 
-        logger.debug("Loading %s", cache_file)
+        logger.debug("Loading", file=str(cache_file))
         save_cache = json.loads(cache_file.read_text())
         for country, country_map in save_cache.items():
             for zip_code, tz in country_map.items():
                 key = Country(country), zip_code
                 cache[key] = pytz.timezone(tz) if tz is not None else None
 
-        logger.debug("Read %d entries from %s.", len(cache), cache_file)
+        logger.debug("Read entries from cache.", file=str(cache_file), length=len(cache))
         return cache
 
     @staticmethod

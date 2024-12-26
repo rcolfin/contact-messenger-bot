@@ -32,11 +32,17 @@ class _CaseInsensitiveEnumMeta(EnumMeta):
 class Country(str, Enum, metaclass=_CaseInsensitiveEnumMeta):
     US = "US"
 
+    def __repr__(self) -> str:
+        return self.name
+
 
 @unique
 class CustomFields(str, Enum):
     BOT_SALUATION = "BOT_SALUATION"
     BOT_OPT_OUT = "BOT_OPT_OUT"
+
+    def __repr__(self) -> str:
+        return self.name
 
 
 @unique
@@ -50,6 +56,9 @@ class SortOrder(str, Enum, metaclass=_CaseInsensitiveEnumMeta):
 class DateType(IntEnum):
     BIRTHDAY = auto()
     ANNIVERSARY = auto()
+
+    def __repr__(self) -> str:
+        return self.name
 
     def subject(self, given_name: str) -> str:
         if self == self.BIRTHDAY:

@@ -1,35 +1,26 @@
-import logging
-import logging.config
-
 import functions_framework
 import google.cloud.logging
 from flask import Flask
+
+from contact_messenger_bot.api import logging
 
 
 def _setup_logging() -> None:
     logging_client = google.cloud.logging.Client()
     logging_client.setup_logging()
-    logging.config.dictConfig(
-        {
-            "version": 1,
-            "formatters": {
-                "default": {
-                    "format": "[%(asctime)s] %(levelname)s in %(module)s: %(message)s",
-                }
+
+    logging.configure(
+        handlers={
+            "wsgi": {
+                "class": "logging.StreamHandler",
+                "stream": "ext://flask.logging.wsgi_errors_stream",
+                "formatter": "structlog",
             },
-            "handlers": {
-                "wsgi": {
-                    "class": "logging.StreamHandler",
-                    "stream": "ext://flask.logging.wsgi_errors_stream",
-                    "formatter": "default",
-                },
-                "gcp_logging": {
-                    "class": "google.cloud.logging.handlers.CloudLoggingHandler",
-                    "client": logging_client,
-                },
+            "gcp_logging": {
+                "class": "google.cloud.logging.handlers.CloudLoggingHandler",
+                "client": logging_client,
             },
-            "root": {"level": "INFO", "handlers": ["wsgi", "gcp_logging"]},
-        }
+        },
     )
 
 

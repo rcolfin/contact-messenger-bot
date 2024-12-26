@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 import os
 import shutil
 import subprocess
@@ -10,11 +9,12 @@ from typing import Final
 
 import click
 import functions_framework
+import structlog
 
-from contact_messenger_bot.api import services
+from contact_messenger_bot.api import logging, services
 from contact_messenger_bot.functions import __version__, constants, function
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 GUNICORN_PATH: Final[str | None] = shutil.which("gunicorn")
 DEFAULT_PORT: Final[int] = int(os.getenv("PORT", constants.DEFAULT_PORT))
@@ -36,9 +36,11 @@ def cli() -> None:
 @click.option("-t", "--target", type=str, default=DEFAULT_TARGET, help="The function target")
 @click.option("-p", "--port", type=int, default=DEFAULT_PORT, help="Default running port.")
 def dev(source: str, target: str, port: int) -> None:
-    logger.info("Running v%s", __version__)
-    logger.info("Configuring app with source=%s, target=%s", source, target)
-    logger.info("Supported Messaging Protocols: %s", services.Messaging.supported_protocols())
+    logging.configure()
+
+    logger.info("Running", version=f"v{__version__}")
+    logger.info("Configuring", source=source, target=target)
+    logger.info("Supported Messaging", protocols=services.Messaging.supported_protocols())
     app = functions_framework.create_app(source=source, target=target)
 
     if constants.FUSE_SECRETS_VOLUME.exists():
@@ -54,19 +56,21 @@ def dev(source: str, target: str, port: int) -> None:
 @click.option("-t", "--target", type=str, default=DEFAULT_TARGET, help="The function target")
 @click.option("-p", "--port", type=int, default=DEFAULT_PORT, help="Default running port.")
 def gunicorn(source: str, target: str, port: int) -> None:
+    logging.configure(renderer=logging.LogRenderer.JSON)
+
     build_timestamp = os.getenv("BUILD_TIMESTAMP", "").strip()
     if build_timestamp:
         build_timestamp = f" (built {build_timestamp})"
 
-    logger.info("Running v%s%s", __version__, build_timestamp)
-    logger.info("Configuring app with source=%s, target=%s", source, target)
-    logger.info("Supported Messaging Protocols: %s", services.Messaging.supported_protocols())
+    logger.info("Running", version=f"v{__version__}{build_timestamp}")
+    logger.info("Configuring", source=source, target=target)
+    logger.info("Supported Messaging", protocols=services.Messaging.supported_protocols())
 
     os.environ["FUNCTION_SOURCE"] = source
     os.environ["FUNCTION_TARGET"] = target
 
     if constants.FUSE_SECRETS_VOLUME.exists():
-        logger.info("Fuse Volume Exists: %s", list(map(str, constants.FUSE_SECRETS_VOLUME.glob("**/*"))))
+        logger.info("Fuse Volume Exists.", files=list(map(str, constants.FUSE_SECRETS_VOLUME.glob("**/*"))))
     else:
         logger.info("Fuse Volume does not exists.")
 
@@ -91,11 +95,6 @@ def gunicorn(source: str, target: str, port: int) -> None:
 
 
 def main() -> None:
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)-4s\t%(message)s",
-    )
-
     cli()
 
 

@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import datetime
-import logging
+import json
 from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
 import asyncclick as click
+import structlog
 
 from contact_messenger_bot.api import constants as api_constants
 from contact_messenger_bot.api import oauth2, services
@@ -16,7 +17,7 @@ if TYPE_CHECKING:
     from collections.abc import Generator
     from os import PathLike
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 @contextmanager
@@ -159,7 +160,7 @@ async def list_contacts(  # noqa: PLR0913
         contact_lst = contact_svc.get_contacts(load_cache=load_cache, save_cache=save_cache)
 
         for contact in contact_lst:
-            logger.info("%s - %s %s", contact.display_name, contact.mobile_numbers, contact.dates)
+            logger.info("contact", contact=json.loads(json.dumps(contact, sort_keys=True, default=str)))
 
 
 @cli.command("supported-protocols")

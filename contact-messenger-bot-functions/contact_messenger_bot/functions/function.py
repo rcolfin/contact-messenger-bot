@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import datetime
-import logging
+import json
 from contextlib import contextmanager
 from http import HTTPStatus
 from typing import TYPE_CHECKING
 
 import functions_framework
+import structlog
 
 from contact_messenger_bot.api import oauth2, services, utils
 from contact_messenger_bot.functions import constants, credentials, gcs
@@ -17,7 +18,7 @@ if TYPE_CHECKING:
 
 import flask
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 if constants.FUSE_SECRETS_CREDENTIALS_FILE.exists():
 
@@ -75,11 +76,12 @@ def get_contacts(request: flask.Request, credentials_file: Path, token_file: Pat
     """
     load_cache = utils.is_truthy(request.args.get("load-cache"), default=True)
     save_cache = utils.is_truthy(request.args.get("save-cache"), default=True)
+    logger.info("get_contacts invoked", load_cache=load_cache, save_cache=save_cache)
     with contact_service(credentials_file, token_file) as contact_svc:
         contact_lst = contact_svc.get_contacts(load_cache=load_cache, save_cache=save_cache)
 
         for contact in contact_lst:
-            logger.info(contact)
+            logger.info("contact", contact=json.loads(json.dumps(contact, sort_keys=True, default=str)))
 
         return flask.make_response("", HTTPStatus.NO_CONTENT)
 
@@ -101,7 +103,7 @@ def send_messages(request: flask.Request, credentials_file: Path, token_file: Pa
     dry_run = utils.is_truthy(request.args.get("dry-run"))
     load_cache = utils.is_truthy(request.args.get("load-cache"), default=True)
     save_cache = utils.is_truthy(request.args.get("save-cache"), default=True)
-    logger.info("send_messages invoked with today=%s, groups=%s, dry_run=%s", today, groups, dry_run)
+    logger.info("send_messages invoked", date=today, groups=groups, dry_run=dry_run)
 
     today_dt = datetime.datetime.strptime(today, constants.DATETIME_FMT).date() if today else None  # noqa: DTZ007
     with contact_service(credentials_file, token_file) as contact_svc:

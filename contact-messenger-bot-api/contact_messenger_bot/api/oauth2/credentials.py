@@ -1,15 +1,15 @@
 import contextlib
-import logging
 from functools import wraps
 from os import PathLike
 from pathlib import Path
 from typing import Callable, Final
 
+import structlog
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class CredentialsManager:
@@ -44,7 +44,7 @@ class CredentialsManager:
         creds = None
         if self._token_file.exists():
             with contextlib.suppress(ValueError):
-                logger.info("Authenticating %s", self._token_file)
+                logger.info("Authenticating with token", file=str(self._token_file))
                 creds = self._wrap_creds(Credentials.from_authorized_user_file(str(self._token_file), scopes))
 
         if not creds or not creds.valid:
@@ -61,13 +61,13 @@ class CredentialsManager:
         refresh_orig: Final[Callable[[Request], None]] = creds.refresh
 
         def save_token() -> None:
-            logger.info("Saving token to %s", self._token_file)
+            logger.info("Saving token", file=str(self._token_file))
             self.write_token(creds.to_json())
 
         @wraps(creds.refresh)
         def refresh(request: Request) -> None:
             if self._token_file.exists():
-                logger.info("Removing %s", self._token_file)
+                logger.info("Removing token", file=str(self._token_file))
                 self._token_file.unlink()
             refresh_orig(request)
             save_token()
