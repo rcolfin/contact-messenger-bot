@@ -7,5 +7,6 @@
         "**/.mypy_cache": true,
         "**/.pytest_cache": true,
         "**/.ruff_cache": true
-    }
+    },
+    "python.defaultInterpreterPath": "~/.cache/pypoetry/virtualenvs/contact-messenger-bot-api-x5nrTSbx-py3.13/bin/python"
 }

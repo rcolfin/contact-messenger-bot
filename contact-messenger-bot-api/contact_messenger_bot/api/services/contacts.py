@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import datetime
-import logging
 import pickle
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Final, cast
 
 import backoff
 import google.auth.exceptions
+import structlog
 from googleapiclient.discovery import Resource, build
 from googleapiclient.errors import HttpError
 from googleapiclient.http import HttpRequest
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from contact_messenger_bot.api.services.zipcode import ZipCode
 
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class Contacts:
@@ -45,13 +45,14 @@ class Contacts:
         self.creds = creds
         self.zipcode = zipcode
         self.cache = Path(cache) if cache else None
+        self._cache: tuple[models.Profile | None, list[models.Contact] | None] | None = None
 
     def get_contacts(
         self, groups: Iterable[str] | None = None, load_cache: bool = True, save_cache: bool = True
     ) -> Iterable[models.Contact]:
         groups = utils.to_frozen_set(groups)
         if load_cache and self.cache is not None and self.cache.exists():
-            contacts = self._load_cache()[1]
+            contacts = self._get_cache()[1]
             if contacts is not None:
                 if groups:
                     gcontacts = [c for c in contacts if c.is_member(groups)]
@@ -72,7 +73,7 @@ class Contacts:
 
     def get_profile(self, load_cache: bool = True, save_cache: bool = True) -> models.Profile:
         if load_cache and self.cache is not None and self.cache.exists():
-            profile = self._load_cache()[0]
+            profile = self._get_cache()[0]
             if profile is not None:
                 return profile
 
@@ -108,7 +109,7 @@ class Contacts:
 
             given_name, display_name = name
 
-            logger.debug("Processing %s...", display_name)
+            logger.debug("Processing", contact=display_name)
 
             nickname = self._get_nickname(contact)
             home_addresses = self._get_home_addresses(contact)
@@ -207,7 +208,7 @@ class Contacts:
                 values = cast(list[dict[str, Any]], results.get(select_key, []))
 
                 total_len = start_idx + len(values)
-                logger.debug("Page: %d (%d-%d %s)", page_count, start_idx, total_len, select_key)
+                logger.debug("Page", page=page_count, start=start_idx, length=total_len, key=select_key)
 
                 yield from values
 
@@ -232,7 +233,7 @@ class Contacts:
             contact_number = number.get("canonicalForm")
             if contact_number is None:
                 display_name = cast(tuple[str, str], self._get_name(contact))[1]
-                logger.warning("%s has no canonical phone number.", display_name)
+                logger.warning("No canonical phone number.", contact=display_name)
                 return number["value"].replace(" ", "")
 
             mobile_numbers.append(models.PhoneNumber(contact_number, primary))
@@ -274,7 +275,7 @@ class Contacts:
 
         if given_name is None:
             given_name = display_name.split(" ")[0]
-            logger.warning("Defaulting %s (no given name) from %s.", given_name, display_name)
+            logger.warning("Defaulting (no given name)", selected=given_name, contact=display_name)
 
         return given_name.strip(), display_name.strip()
 
@@ -288,7 +289,7 @@ class Contacts:
     def _convert_date(self, date: dict[str, int]) -> datetime.date:
         year = date.get("year")
         if year is None:
-            logger.debug("year is not present in %s", date)
+            logger.debug("Year is not present", date=date)
             year = constants.TODAY.year
 
         return datetime.date(year, date["month"], date["day"])
@@ -323,7 +324,7 @@ class Contacts:
 
         payload: dict[str, Any] = {}
         if self.cache.exists():
-            cache_profile, cache_contacts = self._load_cache()
+            cache_profile, cache_contacts = self._get_cache()
             if profile is None:
                 profile = cache_profile
             if contacts is None:
@@ -333,11 +334,21 @@ class Contacts:
             payload["profile"] = profile
 
         if contacts is not None:
-            payload["contacts"] = list(contacts)
+            payload["contacts"] = contacts
 
-        logger.info("Saving %s", self.cache)
+        # Persist the updated cache:
+        self._cache = profile, contacts
+
+        logger.info("Saving", file=str(self.cache))
         with self.cache.open(mode="wb") as f:
             pickle.dump(payload, f)
+
+    def _get_cache(self) -> tuple[models.Profile | None, list[models.Contact] | None]:
+        if self._cache is not None:
+            return self._cache
+
+        self._cache = self._load_cache()
+        return self._cache
 
     def _load_cache(self) -> tuple[models.Profile | None, list[models.Contact] | None]:
         self._assert_cache_supported()
@@ -346,7 +357,7 @@ class Contacts:
         if not self.cache.is_file():
             return None, None
 
-        logger.info("Loading %s", self.cache)
+        logger.info("Loading", file=str(self.cache))
         with self.cache.open(mode="rb") as f:
             payload = pickle.load(f)  # noqa: S301
 

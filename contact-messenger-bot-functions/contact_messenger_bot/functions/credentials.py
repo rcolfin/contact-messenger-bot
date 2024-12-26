@@ -1,17 +1,18 @@
 from __future__ import annotations
 
-import logging
 import tempfile
 from functools import wraps
 from pathlib import Path
 from typing import TYPE_CHECKING, Callable, TypeVar
+
+import structlog
 
 from contact_messenger_bot.functions import constants, gcs
 
 if TYPE_CHECKING:
     import flask
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 RetType = TypeVar("RetType")
 

@@ -1,14 +1,14 @@
-import logging
 from functools import cache
 from typing import Final
 
 import backoff
+import structlog
 from twilio.rest import Client
 
 from contact_messenger_bot.api.models import PhoneNumber
 from contact_messenger_bot.api.settings import settings
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 MAX_RETRY: Final[int] = 2
 
@@ -46,10 +46,10 @@ def send_message(sender: PhoneNumber, to: PhoneNumber, body: str, dry_run: bool)
         return
 
     if dry_run:
-        logger.info("Sending message to=%s, from=%s, body=%s [dry-run]", to, sender, body)
+        logger.info("Sending message [dry-run]", to=to, sender=sender, body=body)
         return
 
     assert settings.text is None
     client = _get_client()
-    logger.info("Sending message to=%s, from=%s, body=%s", to, sender, body)
+    logger.info("Sending message", to=to, sender=sender, body=body)
     _send_text(client, to.number, sender.number, body)

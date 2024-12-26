@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-import logging
 from collections.abc import Callable
 from typing import TYPE_CHECKING, TypeAlias
+
+import structlog
 
 from contact_messenger_bot.api import constants, models, utils
 from contact_messenger_bot.api.services.messaging import email, text
@@ -14,7 +15,7 @@ if TYPE_CHECKING:
 
 SendMessageRule: TypeAlias = Callable[[models.Profile, models.Contact, list[models.DateTuple], str, bool], bool]
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class Messaging:
@@ -43,7 +44,7 @@ class Messaging:
         if self.groups:
             self._filter_contacts(contacts)
             if not contacts:
-                logger.info("No contacts found in %s.", self.groups)
+                logger.info("No contacts found.", groups=self.groups)
                 return
 
         today = today or constants.TODAY
@@ -54,7 +55,7 @@ class Messaging:
         if self.groups:
             self._filter_contacts(contacts)
             if not contacts:
-                logger.info("No contacts found in %s.", self.groups)
+                logger.info("No contacts found.", groups=self.groups)
                 return
 
         for contact in contacts:
@@ -73,11 +74,11 @@ class Messaging:
             if not notifications:
                 continue
             logger.info(
-                "Will send notifications to %s (%s) on %s, via [%s]",
-                contact,
-                contact.saluation,
-                contact.dates,
-                notifications,
+                "Will send notifications",
+                contact=str(contact),
+                saluation=contact.saluation,
+                dates=contact.dates,
+                notifications=notifications,
             )
 
     @staticmethod
@@ -93,21 +94,27 @@ class Messaging:
                 dry_run: bool,
             ) -> bool:
                 if contact.opt_out_messages:
-                    logger.info("%s opt-out.", contact)
+                    logger.debug("Contact has opt-out.", contact=contact)
                     return False  # contact is opt-out
 
                 send_dates = [dt for dt in contact.dates if dt.is_today(today)]
                 if not send_dates:
-                    logger.info("%s has no applicable dates that match %s.", contact, today)
+                    logger.debug("Contact has no applicable dates.", contact=str(contact), date=today.isoformat())
                     return False
 
+                logger.info(
+                    "Contact has the following events.",
+                    contact=str(contact),
+                    events=[x.type for x in send_dates],
+                    date=today.isoformat(),
+                )
                 saluation = contact.saluation
                 for rule in rules:
                     try:
                         if rule(profile, contact, send_dates, saluation, dry_run):
                             return True
                     except Exception:  # noqa: PERF203
-                        logger.exception("Failed to notify via %s.", rule)
+                        logger.exception("Failed to notify.", contact=str(contact), rule=rule)
 
                 return False
         else:
@@ -118,7 +125,7 @@ class Messaging:
                 today: datetime.date,
                 dry_run: bool,
             ) -> bool:
-                logger.info("%s has no supported communication methods.")
+                logger.info("No supported communication methods.", contact=contact)
                 return False
 
         return apply
@@ -150,7 +157,7 @@ class Messaging:
         if not email_address:
             return False
 
-        logger.debug("using %s", email_address)
+        logger.debug("Using", email=email_address)
         for dates in send_dates:
             email.send_message(
                 profile,
@@ -175,7 +182,7 @@ class Messaging:
         if not mobile_email_address:
             return False
 
-        logger.debug("using %s", mobile_email_address)
+        logger.debug("Using", email=mobile_email_address)
         for dates in send_dates:
             email.send_message(profile, contact, mobile_email_address, dates[0].message(saluation), dry_run=dry_run)
 
@@ -193,7 +200,7 @@ class Messaging:
         if not all_mobile_email_addresses:
             return False
 
-        logger.debug("using %s", all_mobile_email_addresses)
+        logger.debug("Using", email=all_mobile_email_addresses)
         for dates in send_dates:
             email.send_message(
                 profile, contact, all_mobile_email_addresses, dates[0].message(saluation), dry_run=dry_run
@@ -213,7 +220,7 @@ class Messaging:
         if not us_mobile_number:
             return False
 
-        logger.debug("using %s", us_mobile_number)
+        logger.debug("Using", email=us_mobile_number)
         for dates in send_dates:
             text.send_message(profile.mobile_number, us_mobile_number, dates[0].message(saluation), dry_run=dry_run)
 
