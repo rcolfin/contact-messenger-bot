@@ -56,9 +56,7 @@ class Contacts:
             if contacts is not None:
                 if groups:
                     gcontacts = [c for c in contacts if c.is_member(groups)]
-                    logger.debug(
-                        "Filter on %s groups, reduced %d contacts to %d.", sorted(groups), len(contacts), len(gcontacts)
-                    )
+                    logger.debug("Filter applied", groups=sorted(groups), length=len(contacts), filtered=len(gcontacts))
                     return gcontacts
 
                 return contacts

@@ -105,7 +105,7 @@ class Messaging:
                 logger.info(
                     "Contact has the following events.",
                     contact=str(contact),
-                    events=[x.type for x in send_dates],
+                    events=[str(x.type) for x in send_dates],
                     date=today.isoformat(),
                 )
                 saluation = contact.saluation
