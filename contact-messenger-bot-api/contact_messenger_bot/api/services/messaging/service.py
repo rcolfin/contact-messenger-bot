@@ -98,9 +98,12 @@ class Messaging:
 
                 send_dates = [dt for dt in contact.dates if dt.is_today(today)]
                 if not send_dates:
-                    logger.info("%s has no applicable dates that match %s.", contact, today)
+                    logger.debug("%s has no applicable dates that match %s.", contact, today)
                     return False
 
+                logger.info(
+                    "%s has the following events: %s for date: %s.", contact, [x.type for x in send_dates], today
+                )
                 saluation = contact.saluation
                 for rule in rules:
                     try:

@@ -5,7 +5,7 @@ import logging
 import smtplib
 from email.mime.text import MIMEText
 from email.utils import formataddr
-from typing import TYPE_CHECKING, Final
+from typing import TYPE_CHECKING
 
 from contact_messenger_bot.api import constants
 from contact_messenger_bot.api.models import EmailAddress
@@ -15,8 +15,6 @@ if TYPE_CHECKING:
     from contact_messenger_bot.api.models import Contact, Profile
 
 logger = logging.getLogger(__name__)
-
-MAILBOX_FMT: Final[str] = "{DISPLAY_NAME} <{EMAIL_ADDRESS}>"
 
 
 def is_supported() -> bool:
