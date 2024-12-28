@@ -98,18 +98,24 @@ def send_messages(request: flask.Request, credentials_file: Path, token_file: Pa
     Returns:
         A flask.Response
     """
-    today = request.args.get("today")
+    date = request.args.get("date")
     groups = [g for g in request.args.get("groups", "").split(",") if g]
     dry_run = utils.is_truthy(request.args.get("dry-run"))
     load_cache = utils.is_truthy(request.args.get("load-cache"), default=True)
     save_cache = utils.is_truthy(request.args.get("save-cache"), default=True)
-    logger.info("send_messages invoked", date=today, groups=groups, dry_run=dry_run)
+    logger.info("send_messages invoked", date=date, groups=groups, dry_run=dry_run)
 
-    today_dt = datetime.datetime.strptime(today, constants.DATETIME_FMT).date() if today else None  # noqa: DTZ007
+    try:
+        date_dt = (
+            datetime.datetime.strptime(date, constants.DATE_FMT).replace(tzinfo=datetime.UTC).date() if date else None
+        )
+    except ValueError:
+        return flask.make_response("", HTTPStatus.BAD_REQUEST)
+
     with contact_service(credentials_file, token_file) as contact_svc:
         profile = contact_svc.get_profile(load_cache=load_cache, save_cache=save_cache)
         contact_lst = contact_svc.get_contacts(groups=groups, load_cache=load_cache, save_cache=save_cache)
         msg_svc = services.Messaging(profile, groups=groups)
-        msg_svc.send_messages(contact_lst, today_dt, dry_run=dry_run)
+        msg_svc.send_messages(contact_lst, date_dt, dry_run=dry_run)
 
         return flask.make_response("", HTTPStatus.NO_CONTENT)

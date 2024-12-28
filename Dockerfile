@@ -51,6 +51,8 @@ ENV \
 ENV \
     BUILD_TIMESTAMP=${BUILD_DATE}
 
+EXPOSE 8080
+
 ENTRYPOINT ["python", "-m", "contact_messenger_bot.functions"]
 
 CMD ["gunicorn"]

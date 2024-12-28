@@ -61,7 +61,7 @@ def contact_service(
 @click.option(
     "--today",
     type=str,
-    default=api_constants.TODAY.strftime(constants.DATETIME_FMT),
+    default=api_constants.TODAY.strftime(constants.DATE_FMT),
     help="Todays's date",
 )
 @click.option(
@@ -96,7 +96,7 @@ async def message_contacts(  # noqa: PLR0913
     load_cache: bool,
     save_cache: bool,
 ) -> None:
-    today_dt = datetime.datetime.strptime(today, constants.DATETIME_FMT).date()  # noqa: DTZ007
+    today_dt = datetime.datetime.strptime(today, constants.DATE_FMT).replace(tzinfo=datetime.UTC).date()
     group_lst = [g for g in groups.split(",") if g]
     with contact_service(credentials, token, zip_code_cache, contacts_svc_cache) as contact_svc:
         profile = contact_svc.get_profile(load_cache=load_cache, save_cache=save_cache)

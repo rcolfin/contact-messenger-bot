@@ -35,7 +35,7 @@ class Messaging:
         return protocols
 
     def send_messages(
-        self, contacts: Iterable[models.Contact], today: datetime.date | None = None, dry_run: bool = False
+        self, contacts: Iterable[models.Contact], date: datetime.date | None = None, dry_run: bool = False
     ) -> None:
         if not self.supported_protocols():
             logger.info("No protocols found.")
@@ -47,9 +47,9 @@ class Messaging:
                 logger.info("No contacts found.", groups=self.groups)
                 return
 
-        today = today or constants.TODAY
+        date = date or constants.TODAY
         for contact in contacts:
-            self._send_message(self.profile, contact, today, dry_run)
+            self._send_message(self.profile, contact, date, dry_run)
 
     def dry_run(self, contacts: Iterable[models.Contact]) -> None:
         if self.groups:
@@ -90,23 +90,23 @@ class Messaging:
             def apply(
                 profile: models.Profile,
                 contact: models.Contact,
-                today: datetime.date,
+                date: datetime.date,
                 dry_run: bool,
             ) -> bool:
                 if contact.opt_out_messages:
                     logger.debug("Contact has opt-out.", contact=contact)
                     return False  # contact is opt-out
 
-                send_dates = [dt for dt in contact.dates if dt.is_today(today)]
+                send_dates = [dt for dt in contact.dates if dt.is_today(date)]
                 if not send_dates:
-                    logger.debug("Contact has no applicable dates.", contact=str(contact), date=today.isoformat())
+                    logger.debug("Contact has no applicable dates.", contact=str(contact), date=date.isoformat())
                     return False
 
                 logger.info(
                     "Contact has the following events.",
                     contact=str(contact),
                     events=[str(x.type) for x in send_dates],
-                    date=today.isoformat(),
+                    date=date.isoformat(),
                 )
                 saluation = contact.saluation
                 for rule in rules:
@@ -122,7 +122,7 @@ class Messaging:
             def apply(
                 profile: models.Profile,
                 contact: models.Contact,
-                today: datetime.date,
+                date: datetime.date,
                 dry_run: bool,
             ) -> bool:
                 logger.info("No supported communication methods.", contact=contact)

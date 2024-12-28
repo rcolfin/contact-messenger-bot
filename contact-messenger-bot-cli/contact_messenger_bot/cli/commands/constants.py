@@ -9,4 +9,4 @@ ZIP_CODE_CACHE_FILE: Final[Path] = Path(Path.cwd(), "zip_code_cache.json").resol
 
 CONTACTS_SVC_CACHE_FILE: Final[Path] = Path(Path.cwd(), "contacts_svc_cache.pkl").resolve()
 
-DATETIME_FMT: Final[str] = "%Y-%m-%d"
+DATE_FMT: Final[str] = "%Y-%m-%d"
