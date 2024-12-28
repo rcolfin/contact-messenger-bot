@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import datetime
 import pickle
+from functools import cached_property
+from http import HTTPStatus
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Final, cast
 
@@ -10,13 +12,14 @@ import google.auth.exceptions
 import structlog
 from googleapiclient.discovery import Resource, build
 from googleapiclient.errors import HttpError
-from googleapiclient.http import HttpRequest
 
 from contact_messenger_bot.api import constants, models, utils
 
 if TYPE_CHECKING:
     import os
-    from collections.abc import Iterable
+    from collections.abc import Callable, Iterable
+
+    from googleapiclient.http import HttpRequest
 
     from contact_messenger_bot.api import oauth2
     from contact_messenger_bot.api.services.zipcode import ZipCode
@@ -82,8 +85,7 @@ class Contacts:
 
     @backoff.on_exception(backoff.expo, google.auth.exceptions.RefreshError, max_tries=constants.MAX_RETRY)
     def _get_profile(self) -> models.Profile:
-        resource = self._create_resource()
-        profile = self._query_profile(resource, self.PROFILE_FIELDS)
+        profile = self._query_profile(self.PROFILE_FIELDS)
         profile_name = self._get_name(profile)
         assert profile_name is not None
         mobile_number = next(filter(lambda x: x.is_primary, self._get_mobile_numbers(profile)))
@@ -92,9 +94,8 @@ class Contacts:
 
     @backoff.on_exception(backoff.expo, google.auth.exceptions.RefreshError, max_tries=constants.MAX_RETRY)
     def _get_contacts(self, interested_groups: frozenset[str] | None = None) -> Iterable[models.Contact]:
-        resource = self._create_resource()
-        groups = self._query_groups(resource, interested_groups)
-        contacts = self._query_contacts(resource, self.CONTACT_FIELDS)
+        groups = self._query_groups(interested_groups)
+        contacts = self._query_contacts(self.CONTACT_FIELDS)
         for contact in contacts:
             resource_name = contact["resourceName"]
             membership = [g.name for g in groups if resource_name in g.members]
@@ -129,21 +130,28 @@ class Contacts:
 
     @backoff.on_exception(backoff.expo, google.auth.exceptions.RefreshError, max_tries=constants.MAX_RETRY)
     def _get_groups(self, interested_groups: frozenset[str] | None) -> list[models.ContactGroup]:
-        resource = self._create_resource()
-        return self._query_groups(resource, interested_groups)
+        return self._query_groups(interested_groups)
 
+    @cached_property
     @backoff.on_exception(backoff.expo, AttributeError, max_tries=constants.MAX_RETRY)
-    def _create_resource(self) -> Resource:
-        return build(
-            "people", "v1", credentials=self.creds.create_oauth_credentials(self.SCOPES), cache_discovery=False
+    def _resource(self) -> Resource:
+        logger.debug("Creating Resource")
+        credentials = self.creds.create_oauth_credentials(self.SCOPES)
+        return build("people", "v1", credentials=credentials, cache_discovery=False)
+
+    def _reset_resource(self) -> None:
+        logger.debug("Resetting resource.")
+        self.__dict__.pop("_resource", None)
+        self.creds.invalidate_token()
+
+    def _query_profile(self, fields: str) -> dict[str, Any]:
+        return self._execute_with_retry(
+            lambda resource: resource.people().get(resourceName=self.PEOPLE_API_RESOURCE, personFields=fields)
         )
 
-    def _query_profile(self, resource: Resource, fields: str) -> dict[str, Any]:
-        return resource.people().get(resourceName=self.PEOPLE_API_RESOURCE, personFields=fields).execute()
-
-    def _query_contacts(self, resource: Resource, fields: str) -> Iterable[dict[str, Any]]:
+    def _query_contacts(self, fields: str) -> Iterable[dict[str, Any]]:
         return self._get_pages(
-            resource.people().connections(),
+            lambda resource: resource.people().connections(),
             "connections",
             resourceName=self.PEOPLE_API_RESOURCE,
             pageSize=self.MAX_PAGE_SIZE,
@@ -151,10 +159,13 @@ class Contacts:
             sortOrder=models.SortOrder.FIRST_NAME_ASCENDING.value,
         )
 
-    def _query_groups(self, resource: Resource, interested_groups: frozenset[str] | None) -> list[models.ContactGroup]:
+    def _query_groups(self, interested_groups: frozenset[str] | None) -> list[models.ContactGroup]:
         def get() -> Iterable[models.ContactGroup]:
             groups = self._get_pages(
-                resource.contactGroups(), "contactGroups", pageSize=self.MAX_PAGE_SIZE, groupFields=self.GROUP_FIELDS
+                lambda resource: resource.contactGroups(),
+                "contactGroups",
+                pageSize=self.MAX_PAGE_SIZE,
+                groupFields=self.GROUP_FIELDS,
             )
 
             for group in groups:
@@ -169,10 +180,12 @@ class Contacts:
                     if name.casefold() not in interested_groups:
                         continue  # ignore
 
-                member_request = resource.contactGroups().get(
-                    resourceName=group["resourceName"], maxMembers=member_count
-                )
-                resp = self._execute_with_retry(member_request)
+                def get_request(
+                    resource: Resource, group: str = group["resourceName"], member_count: int = member_count
+                ) -> HttpRequest:
+                    return resource.contactGroups().get(resourceName=group, maxMembers=member_count)
+
+                resp = self._execute_with_retry(get_request)
                 members = resp.get("memberResourceNames", [])
                 assert len(members) == member_count
                 yield models.ContactGroup(name, frozenset(members))
@@ -183,43 +196,44 @@ class Contacts:
     def _is_primary(container: dict[str, Any], field: str = "primary") -> bool:
         return container.get("metadata", {}).get(field, False)
 
-    @staticmethod
-    @backoff.on_exception(backoff.expo, HttpError, max_tries=constants.MAX_RETRY)
-    def _execute_with_retry(request: HttpRequest) -> dict[str, Any]:
-        return request.execute()
-
-    def _get_pages(self, resource: Resource, select_key: str, **kwargs: Any) -> Iterable[Any]:  # noqa: ANN401
+    @backoff.on_exception(backoff.expo, (google.auth.exceptions.RefreshError, HttpError), max_tries=constants.MAX_RETRY)
+    def _execute_with_retry(self, request_factory: Callable[[Resource], HttpRequest]) -> dict[str, Any]:
         try:
-            next_page_token: str | None = None
-            start_idx = 0
-            page_count = 1
-            while True:
-                request = cast(
-                    HttpRequest,
-                    resource.list(
-                        pageToken=next_page_token,
-                        **kwargs,
-                    ),
-                )
-
-                results = self._execute_with_retry(request)
-                values = cast(list[dict[str, Any]], results.get(select_key, []))
-
-                total_len = start_idx + len(values)
-                logger.debug("Page", page=page_count, start=start_idx, length=total_len, key=select_key)
-
-                yield from values
-
-                next_page_token = results.get("nextPageToken")
-                if next_page_token is None:
-                    break
-
-                start_idx = total_len
-                page_count += 1
+            return request_factory(self._resource).execute()
+        except HttpError as e:
+            if e.status_code == HTTPStatus.FORBIDDEN:
+                logger.exception("Token failed to be refreshed", exc_info=False)
+                self._reset_resource()
+            raise
         except google.auth.exceptions.RefreshError:
             logger.exception("Token failed to be refreshed", exc_info=False)
-            self.creds.invalidate_token()
+            self._reset_resource()
             raise
+
+    def _get_pages(self, get_resource: Callable[[Resource], Resource], select_key: str, **kwargs: Any) -> Iterable[Any]:  # noqa: ANN401
+        next_page_token: str | None = None
+        start_idx = 0
+        page_count = 1
+        while True:
+            request: dict[str, Any] = {"pageToken": next_page_token, **kwargs}
+
+            def get_request(resource: Resource, request: dict[str, Any] = request) -> HttpRequest:
+                return get_resource(resource).list(**request)
+
+            results = self._execute_with_retry(get_request)
+            values = cast(list[dict[str, Any]], results.get(select_key, []))
+
+            total_len = start_idx + len(values)
+            logger.debug("Page", page=page_count, start=start_idx, length=total_len, key=select_key)
+
+            yield from values
+
+            next_page_token = results.get("nextPageToken")
+            if next_page_token is None:
+                break
+
+            start_idx = total_len
+            page_count += 1
 
     def _get_mobile_numbers(self, contact: dict[str, Any]) -> list[models.PhoneNumber]:
         mobile_numbers: list[models.PhoneNumber] = []
