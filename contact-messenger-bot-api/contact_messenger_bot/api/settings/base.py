@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from pydantic_settings import BaseSettings
 
-from contact_messenger_bot.api.settings.email import EmailSettings  # noqa: TCH001
-from contact_messenger_bot.api.settings.text import TextMessagingSettings  # noqa: TCH001
+from contact_messenger_bot.api.settings.email import EmailSettings  # noqa: TC001
+from contact_messenger_bot.api.settings.text import TextMessagingSettings  # noqa: TC001
 
 
 class Settings(BaseSettings):
