@@ -3,7 +3,7 @@ from typing import Final
 
 GCS_BUCKET: Final[str] = "contact-messenger-4ed7624155de0493"
 
-TOKEN_FILE: Final[str] = "token.json"
+TOKEN_FILE: Final[str] = "token.json"  # noqa: S105
 CREDENTIALS_FILE: Final[str] = "credentials.json"
 ZIP_CODE_CACHE_FILE: Final[str] = "zip_code_cache.json"
 CONTACTS_SVC_CACHE_FILE: Final[str] = "contacts_svc_cache.pkl"
