@@ -9,10 +9,11 @@ Bot to send text messages to Google Contacts for birthday's and anniversaries.
 
 ```sh
 scripts/console.sh
-pre-commit install
+
+uvx pre-commit install
 ```
 
-# Development
+## Development
 
 To bootstrap a package, cd into the directory and run:
 

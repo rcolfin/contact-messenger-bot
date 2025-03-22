@@ -169,11 +169,11 @@ class Contacts:
             )
 
             for group in groups:
-                member_count = cast(int, group.get("memberCount", 0))
+                member_count = cast("int", group.get("memberCount", 0))
                 if member_count < 1:
                     continue
 
-                name = cast(str, group["name"])
+                name = cast("str", group["name"])
                 if name.casefold() in self.BUILT_IN_GROUPS:
                     continue  # ignore
                 if interested_groups is not None:
@@ -221,7 +221,7 @@ class Contacts:
                 return get_resource(resource).list(**request)
 
             results = self._execute_with_retry(get_request)
-            values = cast(list[dict[str, Any]], results.get(select_key, []))
+            values = cast("list[dict[str, Any]]", results.get(select_key, []))
 
             total_len = start_idx + len(values)
             logger.debug("Page", page=page_count, start=start_idx, length=total_len, key=select_key)
@@ -244,7 +244,7 @@ class Contacts:
             primary = self._is_primary(number)
             contact_number = number.get("canonicalForm")
             if contact_number is None:
-                display_name = cast(tuple[str, str], self._get_name(contact))[1]
+                display_name = cast("tuple[str, str]", self._get_name(contact))[1]
                 logger.warning("No canonical phone number.", contact=display_name)
                 return number["value"].replace(" ", "")
 

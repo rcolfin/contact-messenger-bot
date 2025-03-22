@@ -1,6 +1,6 @@
 ARG PLATFORM="linux/amd64"
 
-FROM --platform=${PLATFORM} python:3.13-alpine AS build
+FROM --platform=${PLATFORM} ghcr.io/astral-sh/uv:python3.13-alpine AS build
 
 ARG PACKAGE="contact-messenger-bot-functions"
 
@@ -8,7 +8,7 @@ ARG APPDIR="/application"
 
 ARG BUILD_DATE=""
 
-# Install Poetry
+# Setup uv
 
 ENV \
     PYTHONFAULTHANDLER=1 \
@@ -17,18 +17,8 @@ ENV \
     PIP_NO_CACHE_DIR=off \
     PIP_DISABLE_PIP_VERSION_CHECK=on \
     PIP_DEFAULT_TIMEOUT=100 \
-    # Poetry's configuration:
-    POETRY_NO_INTERACTION=1 \
-    POETRY_VIRTUALENVS_CREATE=false \
-    POETRY_CACHE_DIR='/var/cache/pypoetry' \
-    POETRY_HOME='/usr/local'
-
-RUN \
-    wget -qO - https://install.python-poetry.org | python3 -
-
-RUN \
-    mkdir -p "${POETRY_CACHE_DIR}" \
-    && chmod gua+rwxs "${POETRY_CACHE_DIR}"
+    UV_NO_CACHE=1 \
+    UV_PROJECT_ENVIRONMENT="/usr/local"
 
 # Install Package:
 WORKDIR "${APPDIR}"
@@ -37,13 +27,9 @@ COPY . ./
 WORKDIR "${APPDIR}/${PACKAGE}"
 
 RUN \
-    poetry install --no-interaction --no-cache --no-root --quiet \
-    && rm -rf ${POETRY_CACHE_DIR}/* \
-    && poetry run pip install --no-deps --no-cache-dir --quiet . \
-    && find -not -name 'pyproject.toml' -not -name 'poetry.lock' -delete \
-    && find -type d -empty -delete \
-    && rm -rf ~/.cache/pip \
-    && rm -rf ~/.local
+    uv sync --no-dev --locked --quiet \
+    && uv run --no-sync pip install --no-deps --no-cache-dir --quiet . \
+    && rm -rf ./*
 
 ENV \
     GOOGLE_FUNCTION_TARGET=get_contacts

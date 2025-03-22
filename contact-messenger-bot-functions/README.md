@@ -2,19 +2,19 @@
 
 Ths package represents the Google Cloud Run functions that interact with the [contact-messenger-bot-api](../contact-messenger-bot-api/).
 
-# Development
+## Development
 
-# Setup Python Environment:
+### Setup Python Environment:
 
-Run [scripts/console.sh](../scripts/console.sh) poetry install
+Run [scripts/console.sh](../scripts/console.sh)
 
-## If you need to relock:
+### If you need to relock:
 
 Run [scripts/lock.sh](../scripts/lock.sh)
 
-# Run code
+### Run code
 
-Run [scripts/console.sh](../scripts/console.sh) poetry run python -m contact_messenger_bot.functions dev
+Run [scripts/console.sh](../scripts/console.sh) uv run python -m contact_messenger_bot.functions dev
 
 # Create a Proxy to the Deployed Instance
 
