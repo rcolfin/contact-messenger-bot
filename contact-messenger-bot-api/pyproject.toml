@@ -1,13 +1,13 @@
-[tool.poetry]
+[project]
+
 name = "contact-messenger-bot-api"
 version = "0.1.0"
 description = ""
-authors = ["Robert Colfin <robert.m.colfin@gmail.com>"]
-readme = "README.md"
-license = "Apache"
-packages = [
-    { include = "contact_messenger_bot/" }
+authors = [
+    {name = "Robert Colfin", email = "robert.m.colfin@gmail.com"},
 ]
+readme = "README.md"
+license = {text = "Apache"}
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -16,19 +16,32 @@ classifiers = [
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3.13",
 ]
+requires-python = "<4.0,>=3.13"
+dependencies = [
+    "google-auth<3.0.0,>=2.36.0",
+    "google-api-python-client<3.0.0,>=2.157.0",
+    "google-auth-oauthlib<2.0.0,>=1.2.1",
+    "backoff<3.0.0,>=2.2.1",
+    "timezonefinder<7.0.0,>=6.5.7",
+    "pytz<2025.0,>=2024.2",
+    "pydantic<3.0.0,>=2.10.3",
+    "pydantic-settings<3.0.0,>=2.6.1",
+    "twilio<10.0.0,>=9.3.8",
+    "structlog<25.0.0,>=24.4.0",
+]
 
-[tool.poetry.dependencies]
-python = "^3.13"
-google-auth = "^2.36.0"
-google-api-python-client = "^2.157.0"
-google-auth-oauthlib = "^1.2.1"
-backoff = "^2.2.1"
-timezonefinder = "^6.5.7"
-pytz = "^2024.2"
-pydantic = "^2.10.3"
-pydantic-settings = "^2.6.1"
-twilio = "^9.3.8"
-structlog = "^24.4.0"
+[dependency-groups]
+dev = [
+    "mypy<2.0.0,>=1.11.2",
+    "ruff<1.0.0,>=0.11",
+    "pytest<9.0.0,>=8.3.3",
+    "pytest-cov<6.0.0,>=5.0.0",
+    "pytest-ruff<1.0.0,>=0.4.1",
+    "pytest-mypy<1.0.0,>=0.10.3",
+    "jupyter<2.0.0,>=1.1.1",
+    "types-pytz<2025.0.0.0,>=2024.2.0.20241003",
+    "types-requests<3.0.0.0,>=2.32.0.20241016",
+]
 
 [tool.poetry.group.dev.dependencies]
 mypy = "^1.11.2"
@@ -178,6 +191,11 @@ line-ending = "auto"
 [tool.ruff.lint.isort]
 force-single-line = false
 
+[tool.pdm.build]
+includes = [
+    "contact_messenger_bot/",
+]
+
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"

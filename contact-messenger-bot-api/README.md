@@ -2,16 +2,16 @@
 
 API for interacting with Google's People API
 
-# Development
+## Development
 
-# Setup Python Environment:
+### Setup Python Environment:
 
-Run [scripts/console.sh](../scripts/console.sh) poetry install
+Run [scripts/console.sh](../scripts/console.sh)
 
-## If you need to relock:
+### If you need to relock:
 
 Run [scripts/lock.sh](../scripts/lock.sh)
 
-# Run code
+### Run code
 
-Run [scripts/console.sh](../scripts/console.sh) poetry run jupyter notebook
+Run [scripts/console.sh](../scripts/console.sh) uv run jupyter notebook

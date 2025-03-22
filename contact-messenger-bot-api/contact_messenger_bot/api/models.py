@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import random
 from abc import ABC, abstractmethod
-from collections.abc import Iterable
 from enum import Enum, EnumMeta, IntEnum, auto, unique
 from functools import cache
 from typing import TYPE_CHECKING, Any, Final, NamedTuple, cast
@@ -12,6 +11,7 @@ from contact_messenger_bot.api.messages import anniversary, birthday
 
 if TYPE_CHECKING:
     import datetime
+    from collections.abc import Iterable
 
 _RANDOM: Final[random.Random] = random.Random()  # noqa: S311
 
@@ -21,10 +21,10 @@ class _CaseInsensitiveEnumMeta(EnumMeta):
         try:
             return super().__call__(value, *args, **kwargs)
         except ValueError:
-            items = cast(Iterable[Enum], cls)
+            items = cast("Iterable[Enum]", cls)
             for item in items:
                 if item.name.casefold() == value.casefold():
-                    return cast(type[Enum], item)
+                    return cast("type[Enum]", item)
             raise
 
 
