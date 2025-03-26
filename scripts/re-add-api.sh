@@ -17,8 +17,8 @@ for PACKAGE_PATH in "${PACKAGE_PATHS[@]}"; do
     PACKAGE_NAME=$(basename "${PACKAGE_PATH}")
     if [ "${PACKAGE_NAME}" != "contact-messenger-bot-api" ]; then
         pushd "${PACKAGE_PATH}" >/dev/null ||  { FAILED+=("${PACKAGE_NAME}"); continue; }
-        poetry remove "contact-messenger-bot-api"
-        poetry add "../contact-messenger-bot-api"
+        uv remove "contact-messenger-bot-api"
+        uv add "../contact-messenger-bot-api"
         popd >/dev/null || { continue; }
     fi
 done
