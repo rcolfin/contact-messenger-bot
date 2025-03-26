@@ -22,7 +22,7 @@ dependencies = [
     "google-cloud-storage<3.0.0,>=2.18.2",
     "gunicorn<24.0.0,>=23.0.0",
     "click<9.0.0,>=8.1.7",
-    "contact-messenger-bot-api @ file:///${PROJECT_ROOT}/../contact-messenger-bot-api",
+    "contact-messenger-bot-api",
 ]
 
 
@@ -170,6 +170,9 @@ force-single-line = false
 includes = [
     "contact_messenger_bot/",
 ]
+
+[tool.uv.sources]
+contact-messenger-bot-api = { path = "../contact-messenger-bot-api" }
 
 [build-system]
 requires = ["pdm-backend"]

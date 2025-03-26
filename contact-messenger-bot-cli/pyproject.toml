@@ -18,7 +18,7 @@ classifiers = [
 requires-python = "<4.0,>=3.13"
 dependencies = [
     "asyncclick<9.0.0,>=8.1.8",
-    "contact-messenger-bot-api @ file:///${PROJECT_ROOT}/../contact-messenger-bot-api",
+    "contact-messenger-bot-api",
 ]
 
 
@@ -166,6 +166,9 @@ force-single-line = false
 includes = [
     "contact_messenger_bot/",
 ]
+
+[tool.uv.sources]
+contact-messenger-bot-api = { path = "../contact-messenger-bot-api" }
 
 [build-system]
 requires = ["pdm-backend"]
