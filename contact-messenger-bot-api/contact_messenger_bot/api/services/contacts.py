@@ -238,17 +238,18 @@ class Contacts:
     def _get_mobile_numbers(self, contact: dict[str, Any]) -> list[models.PhoneNumber]:
         mobile_numbers: list[models.PhoneNumber] = []
         for number in contact.get("phoneNumbers", []):
-            if number.get("type", "").casefold() != constants.MOBILE_LABEL:
+            if number.get("type", "").casefold() not in (constants.MOBILE_LABEL, constants.BOT_LABEL):
                 continue
 
             primary = self._is_primary(number)
+            is_bot = number.get("type", "").casefold() == constants.BOT_LABEL
             contact_number = number.get("canonicalForm")
             if contact_number is None:
                 display_name = cast("tuple[str, str]", self._get_name(contact))[1]
                 logger.warning("No canonical phone number.", contact=display_name)
-                return number["value"].replace(" ", "")
+                contact_number = number["value"].replace(" ", "")
 
-            mobile_numbers.append(models.PhoneNumber(contact_number, primary))
+            mobile_numbers.append(models.PhoneNumber(contact_number, primary, is_bot))
 
         return mobile_numbers
 
@@ -269,7 +270,8 @@ class Contacts:
             primary = self._is_primary(email_addresses)
             address = email_addresses.get("value")
             is_phone = email_address_type in constants.MOBILE_LABELS
-            addresses.append(models.EmailAddress(address, primary, is_phone))
+            is_bot = email_address_type in constants.BOT_LABEL
+            addresses.append(models.EmailAddress(address, primary, is_phone, is_bot))
 
         return addresses
 

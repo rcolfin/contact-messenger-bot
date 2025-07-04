@@ -17,7 +17,7 @@ _RANDOM: Final[random.Random] = random.Random()  # noqa: S311
 
 
 class _CaseInsensitiveEnumMeta(EnumMeta):
-    def __call__(cls, value: str, *args: list[Any], **kwargs: Any) -> type[Enum]:  # noqa: ANN401
+    def __call__(cls, value: Any, *args: Any, **kwargs: Any) -> Any:  # noqa: ANN401
         try:
             return super().__call__(value, *args, **kwargs)
         except ValueError:
@@ -137,34 +137,47 @@ class Contact(NamedTuple):
         return utils.is_truthy(self.metadata.get(CustomFields.BOT_OPT_OUT))
 
     def get_primary_mobile_email_address(self) -> EmailAddress | None:
-        """Gets the email address associated with the contact's phone number."""
         mobile_email_addresses = [n for n in self.email_addresses if n.is_phone]
         if not mobile_email_addresses:
             return None
-        prmary_mobile_email_addresses = (n for n in mobile_email_addresses if n.is_primary)
-        return next(prmary_mobile_email_addresses, None) or mobile_email_addresses[0]
+        primary_mobile_email_address = next((n for n in mobile_email_addresses if n.is_primary), None)
+        if primary_mobile_email_address:
+            return primary_mobile_email_address
+        return mobile_email_addresses[0]
 
     def get_primary_email_address(self) -> EmailAddress | None:
         """Gets the email address associated with the contact's phone number."""
-        prmary_email_addresses = (n for n in self.email_addresses if n.is_primary)
-        return next(prmary_email_addresses, None)
+        bot_email_address = next((n for n in self.email_addresses if n.is_bot), None)
+        if bot_email_address:
+            return bot_email_address
+        return next((n for n in self.email_addresses if n.is_primary), None)
 
     def get_us_mobile_number(self) -> PhoneNumber | None:
         """Gets the mobile number that can receive SMS messages."""
-        us_mobile_numbers = (n for n in self.mobile_numbers if n.country() == Country.US)
-        return next(us_mobile_numbers, None)
+        us_mobile_numbers = [n for n in self.mobile_numbers if n.country() == Country.US]
+        bot_mobile_number = next((n for n in us_mobile_numbers if n.is_bot), None)
+        if bot_mobile_number:
+            return bot_mobile_number
+        primary_mobile_number = next((n for n in us_mobile_numbers if n.is_primary), None)
+        if primary_mobile_number:
+            return primary_mobile_number
+        return next(iter(us_mobile_numbers), None)
 
     def get_all_mobile_email_addresses(self) -> list[EmailAddress]:
         """Gets the possible email addresses for the phone carriers that match the mobile number associated."""
-        mobile_email_addresses = ((n.is_primary, n.get_email_addresses()) for n in self.mobile_numbers)
-        mobile_email_addresses_lst = [(is_primary, ea) for is_primary, ea in mobile_email_addresses if ea]
-        if not mobile_email_addresses_lst:
+        mobile_email_addresses = [(n, n.get_email_addresses()) for n in self.mobile_numbers]
+        if not mobile_email_addresses:
             return []
 
-        r = next((ea for is_primary, ea in mobile_email_addresses_lst if is_primary), None)
-        if r:
-            return r
-        return next((ea for _is_primary, ea in mobile_email_addresses_lst), [])
+        bot_mobile_email_addresses = next((ea for n, ea in mobile_email_addresses if n.is_bot), None)
+        if bot_mobile_email_addresses:
+            return bot_mobile_email_addresses
+
+        primary_email_addresses = next((ea for n, ea in mobile_email_addresses if n.is_primary), None)
+        if primary_email_addresses:
+            return primary_email_addresses
+
+        return mobile_email_addresses[0][1]
 
 
 class Profile(NamedTuple):
@@ -185,6 +198,7 @@ class ContactGroup(NamedTuple):
 class PhoneNumber(NamedTuple):
     number: str
     is_primary: bool
+    is_bot: bool = False
 
     def country(self) -> Country | None:
         """Determines if the Country of the number."""
@@ -198,9 +212,9 @@ class PhoneNumber(NamedTuple):
 
     def get_email_addresses(self) -> list[EmailAddress]:
         """Gets the list of email addresses associated with phone carriers in the same Country as the number."""
-        addresses = (carrier.get_email(self) for carrier in MobileCarrier.get_carriers())
+        addresses = (carrier.get_email(self) for carrier in MobileCarrier.get_carriers() if carrier.enabled)
         return [
-            EmailAddress(address, is_primary=self.is_primary, is_phone=True)
+            EmailAddress(address, is_primary=self.is_primary, is_phone=True, is_bot=self.is_bot)
             for address in addresses
             if address is not None
         ]
@@ -210,11 +224,35 @@ class EmailAddress(NamedTuple):
     address: str
     is_primary: bool
     is_phone: bool
+    is_bot: bool = False
+
+    def get_mobile_carrier(self) -> MobileCarrier | None:
+        """Gets the mobile carrier associated with this email address."""
+        for carrier in MobileCarrier.get_carriers():
+            if carrier.is_carrier(self.address):
+                return carrier
+        return None
+
+    def is_enabled(self) -> bool:
+        """Indicates whether this email address is enabled."""
+        if self.is_phone:
+            carrier = self.get_mobile_carrier()
+            if carrier:
+                return carrier.enabled
+        return True
 
 
 class MobileCarrier(ABC):
     def __repr__(self) -> str:
         return self.__class__.__name__
+
+    @property
+    def enabled(self) -> bool:
+        """Indicates whether this carrier is enabled."""
+        return True
+
+    def is_carrier(self, address: str) -> bool:
+        return False
 
     @property
     @abstractmethod
@@ -238,26 +276,34 @@ class USMobileCarrier(MobileCarrier):
 
     @property
     @abstractmethod
-    def _format(self) -> str:
+    def domain(self) -> str:
         pass
+
+    def is_carrier(self, address: str) -> bool:
+        return address.endswith(f"@{self.domain}")
 
     def get_email(self, number: PhoneNumber) -> str | None:
         if number.country() == self.country:
-            return self._format.format(number.shortnumber())
+            return f"{number.shortnumber()}@{self.domain}"
         return None
 
 
 class ATT(USMobileCarrier):
-    _format: Final[str] = "{}@txt.att.net"
+    domain: Final[str] = "txt.att.net"
+
+    @property
+    def enabled(self) -> bool:
+        """Indicates whether this carrier is enabled."""
+        return False
 
 
 class GoogleFi(USMobileCarrier):
-    _format: Final[str] = "{}@msg.fi.google.com"
+    domain: Final[str] = "msg.fi.google.com"
 
 
 class TMobile(USMobileCarrier):
-    _format: Final[str] = "{}@tmomail.com"
+    domain: Final[str] = "tmomail.com"
 
 
 class Verison(USMobileCarrier):
-    _format: Final[str] = "{}@vtext.com"
+    domain: Final[str] = "vtext.com"
