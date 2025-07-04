@@ -182,6 +182,10 @@ class Messaging:
         if not mobile_email_address:
             return False
 
+        if not mobile_email_address.is_enabled():
+            logger.debug("Mobile email address is not enabled.", email=mobile_email_address)
+            return False
+
         logger.debug("Using", email=mobile_email_address)
         for dates in send_dates:
             email.send_message(profile, contact, mobile_email_address, dates[0].message(saluation), dry_run=dry_run)
@@ -196,6 +200,12 @@ class Messaging:
         saluation: str,
         dry_run: bool,
     ) -> bool:
+        mobile_email_address = contact.get_primary_mobile_email_address()
+        if mobile_email_address and not mobile_email_address.is_enabled():
+            # If there is a primary mobile email address but it is not enabled,
+            # do not try sending a message to all carriers.
+            return False
+
         all_mobile_email_addresses = contact.get_all_mobile_email_addresses()
         if not all_mobile_email_addresses:
             return False
