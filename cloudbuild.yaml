@@ -9,6 +9,7 @@ steps:
       - |
           docker build \
             --build-arg BUILD_DATE="$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \
+            --build-arg GIT_COMMIT="$SHORT_SHA" \
             -t gcr.io/$PROJECT_ID/contact-messenger-bot \
             . \
             --pull

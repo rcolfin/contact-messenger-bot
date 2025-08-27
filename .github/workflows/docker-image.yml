@@ -56,6 +56,11 @@ jobs:
     - name: Check out repository
       uses: actions/checkout@v4
 
+    - name: Set environment variables
+      run: |
+        echo "BUILD_DATE="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"" >> $GITHUB_ENV
+        echo "GIT_COMMIT="$(git rev-parse --short HEAD)"" >> $GITHUB_ENV
+
     - name: Login to Docker Hub
       uses: docker/login-action@v3
       with:
@@ -70,11 +75,26 @@ jobs:
       working-directory: ${{ matrix.dirs }}
       env:
         TAG: ${{ needs.setup.outputs.tag }}
+        BUILD_DATE: "${{ env.BUILD_DATE }}"
+        GIT_COMMIT: "${{ env.GIT_COMMIT }}"
 
     - name: Publish the Docker image
+      id: publish
       run: |
         set -euox pipefail
         [ -f docker/docker-compose.yml ] && docker compose -f ./docker/docker-compose.yml push
       working-directory: ${{ matrix.dirs }}
       env:
         TAG: ${{ needs.setup.outputs.tag }}
+        BUILD_DATE: "${{ env.BUILD_DATE }}"
+        GIT_COMMIT: "${{ env.GIT_COMMIT }}"
+
+    - name: Publish the Docker image (Retry)
+      if: ${{ failure() && steps.publish.outcome == 'failure' }}
+      run: |
+        set -euox pipefail
+        [ -f docker/docker-compose.yml ] && docker compose -f ./docker/docker-compose.yml push
+      working-directory: ${{ matrix.dirs }}
+      env:
+        BUILD_DATE: "${{ env.BUILD_DATE }}"
+        GIT_COMMIT: "${{ env.GIT_COMMIT }}"

@@ -2,11 +2,18 @@ ARG PLATFORM="linux/amd64"
 
 FROM --platform=${PLATFORM} ghcr.io/astral-sh/uv:python3.13-alpine AS build
 
-ARG PACKAGE="contact-messenger-bot-functions"
-
-ARG APPDIR="/application"
-
+ARG GIT_COMMIT="unknown"
 ARG BUILD_DATE=""
+ARG AUTHORS="rcolfin"
+ARG PACKAGE="contact-messenger-bot-functions"
+ARG APPDIR="/application"
+ARG BUILD_DATE=""
+
+LABEL \
+    org.opencontainers.image.revision=$GIT_COMMIT \
+    org.opencontainers.image.created=$BUILD_DATE \
+    org.opencontainers.image.authors=$AUTHORS \
+    org.opencontainers.image.description="Contact Messenger Bot Functions"
 
 # Setup uv
 
@@ -35,7 +42,9 @@ ENV \
     GOOGLE_FUNCTION_TARGET=get_contacts
 
 ENV \
+    GIT_COMMIT=${GIT_COMMIT} \
     BUILD_TIMESTAMP=${BUILD_DATE}
+
 
 EXPOSE 8080
 
