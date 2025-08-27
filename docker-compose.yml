@@ -14,5 +14,6 @@ services:
         - rcolfin/metelsoft:contact-messenger-bot
         - rcolfin/metelsoft:contact-messenger-bot${TAG:+-${TAG}}
       args:
-        - PACKAGE=contact-messenger-bot-functions
-        - BUILD_DATE=${BUILD_DATE}
+        PACKAGE: contact-messenger-bot-functions
+        BUILD_DATE: ${BUILD_DATE}
+        GIT_COMMIT: ${GIT_COMMIT:-unknown}
