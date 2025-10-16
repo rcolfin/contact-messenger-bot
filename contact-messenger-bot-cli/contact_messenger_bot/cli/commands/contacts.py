@@ -7,9 +7,9 @@ from typing import TYPE_CHECKING
 
 import asyncclick as click
 import structlog
-
 from contact_messenger_bot.api import constants as api_constants
 from contact_messenger_bot.api import oauth2, services
+
 from contact_messenger_bot.cli.commands import constants
 from contact_messenger_bot.cli.commands.common import cli
 
