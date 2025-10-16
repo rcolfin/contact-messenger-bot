@@ -10,8 +10,8 @@ from typing import Final
 import click
 import functions_framework
 import structlog
-
 from contact_messenger_bot.api import logging, services
+
 from contact_messenger_bot.functions import __version__, constants, function
 
 logger = structlog.get_logger(__name__)

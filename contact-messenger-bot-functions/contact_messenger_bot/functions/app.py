@@ -1,8 +1,7 @@
 import functions_framework
 import google.cloud.logging
-from flask import Flask
-
 from contact_messenger_bot.api import logging
+from flask import Flask
 
 
 def _setup_logging() -> None:

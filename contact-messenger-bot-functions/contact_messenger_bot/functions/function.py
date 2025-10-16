@@ -8,8 +8,8 @@ from typing import TYPE_CHECKING
 
 import functions_framework
 import structlog
-
 from contact_messenger_bot.api import oauth2, services, utils
+
 from contact_messenger_bot.functions import constants, credentials, gcs
 
 if TYPE_CHECKING:

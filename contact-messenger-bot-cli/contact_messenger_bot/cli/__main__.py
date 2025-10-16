@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from contact_messenger_bot.api import logging
+
 from contact_messenger_bot.cli.commands import cli
 
 
