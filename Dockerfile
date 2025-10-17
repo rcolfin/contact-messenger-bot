@@ -1,6 +1,6 @@
 ARG PLATFORM="linux/amd64"
 
-FROM --platform=${PLATFORM} ghcr.io/astral-sh/uv:python3.13-alpine AS build
+FROM --platform=${PLATFORM} ghcr.io/astral-sh/uv:python3.14-alpine AS build
 
 ARG GIT_COMMIT="unknown"
 ARG BUILD_DATE=""
