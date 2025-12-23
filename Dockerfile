@@ -1,6 +1,6 @@
 ARG PLATFORM="linux/amd64"
 
-FROM --platform=${PLATFORM} ghcr.io/astral-sh/uv:python3.14-bookworm AS build
+FROM --platform=${PLATFORM} ghcr.io/astral-sh/uv:python3.14-alpine AS build
 
 ARG GIT_COMMIT="unknown"
 ARG BUILD_DATE=""
@@ -26,6 +26,9 @@ WORKDIR "${APPDIR}"
 COPY . ./
 
 WORKDIR "${APPDIR}/${PACKAGE}"
+
+RUN \
+    apk add build-base libffi-dev
 
 RUN \
     uv sync --no-dev --locked --quiet \
