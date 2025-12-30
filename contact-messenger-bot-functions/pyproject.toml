@@ -13,9 +13,9 @@ classifiers = [
     "License :: OSI Approved :: Apache Software License",
     "Natural Language :: English",
     "Operating System :: OS Independent",
-    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
 ]
-requires-python = "<4.0,>=3.13"
+requires-python = "<4.0,>=3.14"
 dependencies = [
     "functions-framework<4.0.0,>=3.8.2",
     "google-cloud-logging<4.0.0,>=3.11.3",

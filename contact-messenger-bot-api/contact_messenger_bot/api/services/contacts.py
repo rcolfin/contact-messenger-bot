@@ -7,11 +7,11 @@ from http import HTTPStatus
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Final, cast
 
-import backoff
 import google.auth.exceptions
 import structlog
 from googleapiclient.discovery import Resource, build
 from googleapiclient.errors import HttpError
+from tenacity import retry, retry_if_exception_cause_type, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from contact_messenger_bot.api import constants, models, utils
 
@@ -83,7 +83,11 @@ class Contacts:
             self._save_cache(profile=profile)
         return profile
 
-    @backoff.on_exception(backoff.expo, google.auth.exceptions.RefreshError, max_tries=constants.MAX_RETRY)
+    @retry(
+        retry=retry_if_exception_type(google.auth.exceptions.RefreshError),
+        wait=wait_exponential(),
+        stop=stop_after_attempt(constants.MAX_RETRY),
+    )
     def _get_profile(self) -> models.Profile:
         profile = self._query_profile(self.PROFILE_FIELDS)
         profile_name = self._get_name(profile)
@@ -92,7 +96,11 @@ class Contacts:
         email_address = next(filter(lambda x: x.is_primary, self._get_email_addresses(profile)))
         return models.Profile(profile_name[0], profile_name[1], mobile_number, email_address)
 
-    @backoff.on_exception(backoff.expo, google.auth.exceptions.RefreshError, max_tries=constants.MAX_RETRY)
+    @retry(
+        retry=retry_if_exception_type(google.auth.exceptions.RefreshError),
+        wait=wait_exponential(),
+        stop=stop_after_attempt(constants.MAX_RETRY),
+    )
     def _get_contacts(self, interested_groups: frozenset[str] | None = None) -> Iterable[models.Contact]:
         groups = self._query_groups(interested_groups)
         contacts = self._query_contacts(self.CONTACT_FIELDS)
@@ -128,12 +136,20 @@ class Contacts:
                 metadata,
             )
 
-    @backoff.on_exception(backoff.expo, google.auth.exceptions.RefreshError, max_tries=constants.MAX_RETRY)
+    @retry(
+        retry=retry_if_exception_type(google.auth.exceptions.RefreshError),
+        wait=wait_exponential(),
+        stop=stop_after_attempt(constants.MAX_RETRY),
+    )
     def _get_groups(self, interested_groups: frozenset[str] | None) -> list[models.ContactGroup]:
         return self._query_groups(interested_groups)
 
     @cached_property
-    @backoff.on_exception(backoff.expo, AttributeError, max_tries=constants.MAX_RETRY)
+    @retry(
+        retry=retry_if_exception_type(AttributeError),
+        wait=wait_exponential(),
+        stop=stop_after_attempt(constants.MAX_RETRY),
+    )
     def _resource(self) -> Resource:
         logger.debug("Creating Resource")
         credentials = self.creds.create_oauth_credentials(self.SCOPES)
@@ -196,7 +212,11 @@ class Contacts:
     def _is_primary(container: dict[str, Any], field: str = "primary") -> bool:
         return container.get("metadata", {}).get(field, False)
 
-    @backoff.on_exception(backoff.expo, (google.auth.exceptions.RefreshError, HttpError), max_tries=constants.MAX_RETRY)
+    @retry(
+        retry=retry_if_exception_cause_type((google.auth.exceptions.RefreshError, HttpError)),
+        wait=wait_exponential(),
+        stop=stop_after_attempt(constants.MAX_RETRY),
+    )
     def _execute_with_retry(self, request_factory: Callable[[Resource], HttpRequest]) -> dict[str, Any]:
         try:
             return request_factory(self._resource).execute()

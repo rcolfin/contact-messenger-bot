@@ -6,7 +6,7 @@ SCRIPT_PATH=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 SCRIPT_NAME=$( basename "${BASH_SOURCE[0]}" )
 PYTHON_ROOT_PATH=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )/.." &> /dev/null && pwd )
 
-if ! command -v "poetry" &> /dev/null; then
+if ! command -v "uv" &> /dev/null; then
     exec "${SCRIPT_PATH}/console.sh" "${SCRIPT_PATH}/${SCRIPT_NAME}"
 fi
 
@@ -19,6 +19,7 @@ for PACKAGE_PATH in "${PACKAGE_PATHS[@]}"; do
         pushd "${PACKAGE_PATH}" >/dev/null ||  { FAILED+=("${PACKAGE_NAME}"); continue; }
         uv remove "contact-messenger-bot-api"
         uv add "../contact-messenger-bot-api"
+        uv sync
         popd >/dev/null || { continue; }
     fi
 done

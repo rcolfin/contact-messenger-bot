@@ -27,9 +27,7 @@ gcloud run services proxy contact-messenger-bot --port=8080 --region=us-central1
 1. Start the dev server:
 
 ```sh
-source ./scripts/secrets.sh
-
-python -m contact_messenger_bot.functions dev --target send_messages
+./scripts/launch.sh dev --target send_messages
 ```
 
 2. Then open a browser to http://127.0.0.1:8080?date=2024-11-10&groups=family&dry-run=true
