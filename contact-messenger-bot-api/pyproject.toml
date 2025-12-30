@@ -14,14 +14,14 @@ classifiers = [
     "License :: OSI Approved :: Apache Software License",
     "Natural Language :: English",
     "Operating System :: OS Independent",
-    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
 ]
-requires-python = "<4.0,>=3.13"
+requires-python = "<4.0,>=3.14"
 dependencies = [
     "google-auth<3.0.0,>=2.36.0",
     "google-api-python-client<3.0.0,>=2.157.0",
     "google-auth-oauthlib<2.0.0,>=1.2.1",
-    "backoff<3.0.0,>=2.2.1",
+    "tenacity>=9.1.2",
     "timezonefinder<7.0.0,>=6.5.7",
     "pytz<2025.0,>=2024.2",
     "pydantic<3.0.0,>=2.10.3",

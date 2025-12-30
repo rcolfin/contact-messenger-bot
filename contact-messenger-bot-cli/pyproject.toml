@@ -13,9 +13,9 @@ classifiers = [
     "License :: OSI Approved :: Apache Software License",
     "Natural Language :: English",
     "Operating System :: OS Independent",
-    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
 ]
-requires-python = "<4.0,>=3.13"
+requires-python = "<4.0,>=3.14"
 dependencies = [
     "asyncclick<9.0.0,>=8.1.8",
     "contact-messenger-bot-api",

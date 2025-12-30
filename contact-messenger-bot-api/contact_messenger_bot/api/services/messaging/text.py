@@ -1,8 +1,8 @@
 from functools import cache
 from typing import Final
 
-import backoff
 import structlog
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 from twilio.rest import Client
 
 from contact_messenger_bot.api.models import PhoneNumber
@@ -29,7 +29,7 @@ def _get_client() -> Client:
     return Client(account_sid, auth_token)
 
 
-@backoff.on_exception(backoff.expo, IOError, max_tries=MAX_RETRY)
+@retry(retry=retry_if_exception_type(IOError), wait=wait_exponential(), stop=stop_after_attempt(MAX_RETRY))
 def _send_text(client: Client, to: str, sender: str, body: str) -> None:
     client.api.account.messages.create(to=to, from_=sender, body=body)
 

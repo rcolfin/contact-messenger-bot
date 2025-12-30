@@ -4,12 +4,12 @@ from os import PathLike
 from pathlib import Path
 from typing import TYPE_CHECKING, Final
 
-import backoff
 import structlog
 from google.auth.exceptions import RefreshError
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from contact_messenger_bot.api import constants
 
@@ -49,7 +49,11 @@ class CredentialsManager:
         token_file_ctime = self._token_file.stat().st_ctime if self._token_file.exists() else None
         return token_file_ctime != self.__token_file_ctime
 
-    @backoff.on_exception(backoff.expo, RefreshError, max_tries=constants.MAX_RETRY)
+    @retry(
+        retry=retry_if_exception_type(RefreshError),
+        wait=wait_exponential(),
+        stop=stop_after_attempt(constants.MAX_RETRY),
+    )
     def create_oauth_credentials(self, scopes: list[str]) -> Credentials:
         """Creates an instance of OAuth 2.0 Credentials"""
         creds = None
