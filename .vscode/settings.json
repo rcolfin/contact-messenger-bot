@@ -1,12 +1,22 @@
 {
+    "files.insertFinalNewline": true,
     "files.trimTrailingWhitespace": true,
     "workbench.editor.enablePreview": false,
     "editor.formatOnSave": true,
+    "java.configuration.updateBuildConfiguration": "automatic",
+    "python.testing.pytestEnabled": true,
     "files.exclude": {
         "**/__pycache__": true,
         "**/.mypy_cache": true,
         "**/.pytest_cache": true,
         "**/.ruff_cache": true
     },
-    "python.defaultInterpreterPath": "/home/rcolfin/workspace/contact-messenger-bot/contact-messenger-bot-api/.venv/bin/python"
+    "[python]": {
+        "editor.defaultFormatter": "charliermarsh.ruff",
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+            "source.fixAll.ruff": "explicit",
+            "source.organizeImports.ruff": "explicit"
+        }
+    }
 }

@@ -118,7 +118,7 @@ class ZipCode:
         :param timeout: The optional timeout.
         :return: The Coordinate of the zip code or None if not found.
         """
-        zip_code = zip_code.split("-")[0]  # in case the zip code has an extra 4 digits
+        zip_code = zip_code.split("-", maxsplit=1)[0]  # in case the zip code has an extra 4 digits
         url = f"https://api.zippopotam.us/{country.value.lower()}/{zip_code}"
         response = self._sesson.get(url, timeout=timeout)
         if not response.ok:

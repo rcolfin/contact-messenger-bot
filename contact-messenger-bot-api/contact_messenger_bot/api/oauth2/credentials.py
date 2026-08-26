@@ -85,7 +85,7 @@ class CredentialsManager:
             refresh_orig(request)
             save_token()
 
-        creds.refresh = refresh
+        creds.refresh = refresh  # type: ignore[method-assign]
 
         if save:
             save_token()

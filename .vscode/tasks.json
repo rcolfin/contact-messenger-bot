@@ -1,0 +1,11 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Claude",
+            "command": "claude",
+            "type": "process",
+            "problemMatcher": []
+        }
+    ]
+}
