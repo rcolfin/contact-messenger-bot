@@ -1,8 +1,15 @@
 {
     "recommendations": [
-        "ms-python.python",
+        "ms-azuretools.vscode-docker",
+        "vscjava.vscode-gradle",
+        "redhat.java",
+        "vscjava.vscode-java-pack",
         "github.vscode-github-actions",
         "charliermarsh.ruff",
-        "ms-toolsai.jupyter"
+        "ms-python.python",
+        "vscjava.vscode-java-test",
+        "ms-dotnettools.csharp",
+        "ms-dotnettools.csdevkit",
+        "leetcode.vscode-leetcode"
     ]
 }
