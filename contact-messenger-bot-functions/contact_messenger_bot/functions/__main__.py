@@ -70,7 +70,7 @@ def gunicorn(source: str, target: str, port: int) -> None:
     os.environ["FUNCTION_TARGET"] = target
 
     if constants.FUSE_SECRETS_VOLUME.exists():
-        logger.info("Fuse Volume Exists.", files=list(map(str, constants.FUSE_SECRETS_VOLUME.glob("**/*"))))
+        logger.info("Fuse Volume Exists: %s", constants.FUSE_SECRETS_VOLUME)
     else:
         logger.info("Fuse Volume does not exists.")
 

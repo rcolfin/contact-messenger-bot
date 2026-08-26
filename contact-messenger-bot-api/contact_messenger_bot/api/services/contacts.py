@@ -123,7 +123,11 @@ class Contacts:
             mobile_numbers = self._get_mobile_numbers(contact)
             email_addresses = self._get_email_addresses(contact)
             dates = self._get_dates(contact)
-            metadata = {ud["key"]: ud["value"] for ud in contact["userDefined"]} if "userDefined" in contact else {}
+            metadata = (
+                {ud["key"].strip().upper(): ud["value"] for ud in contact["userDefined"]}
+                if "userDefined" in contact
+                else {}
+            )
             yield models.Contact(
                 given_name,
                 display_name,

@@ -85,7 +85,7 @@ def contact_service(
     help="Flag indicating whether to persist changes to the Contact Service cache",
 )
 @click.option("--groups", type=str, default="", help="The contact groups (comma separated).")
-async def message_contacts(  # noqa: PLR0913
+async def message_contacts(  # noqa: PLR0913, PLR0917
     credentials: PathLike,
     token: PathLike,
     zip_code_cache: PathLike,
@@ -148,7 +148,7 @@ async def message_contacts(  # noqa: PLR0913
     default=True,
     help="Flag indicating whether to persist changes to the Contact Service cache",
 )
-async def list_contacts(  # noqa: PLR0913
+async def list_contacts(  # noqa: PLR0913, PLR0917
     credentials: PathLike,
     token: PathLike,
     zip_code_cache: PathLike,

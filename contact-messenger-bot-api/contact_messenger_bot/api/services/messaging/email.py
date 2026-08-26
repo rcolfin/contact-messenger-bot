@@ -23,7 +23,7 @@ def is_supported() -> bool:
     return bool(settings.email)
 
 
-def send_message(  # noqa: PLR0913
+def send_message(  # noqa: PLR0913, PLR0917
     sender: Profile,
     recipient: Contact,
     addresses: EmailAddress | list[EmailAddress],
