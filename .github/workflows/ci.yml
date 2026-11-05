@@ -37,7 +37,7 @@ jobs:
         run: |
           set -euo pipefail
           dirs=$(find -mindepth 2 -maxdepth 2 -type f -name 'pyproject.toml' -printf '%h\n' | cut -d/ -f2- | sort | tr "\n" " " | awk '{$1=$1};1')
-          dirs=$(jq -n --indent 0 --arg dirs "$dirs" '$dirs | split(" ")')
+          dirs=$(jq -nc --arg dirs "$dirs" '$dirs | split(" ")')
           echo "dirs=$dirs" >> $GITHUB_OUTPUT
       - run: |
           echo "dirs=${{ steps.matrix.outputs.dirs }}"
