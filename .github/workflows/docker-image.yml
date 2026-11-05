@@ -30,7 +30,7 @@ jobs:
         run: |
           set -euo pipefail
           dirs=$(find -mindepth 3 -maxdepth 3 -type f -name 'Dockerfile' -printf '%h\n' | xargs dirname | cut -d/ -f2- | sort | tr "\n" " " | awk '{$1=$1};1')
-          dirs=$(jq -n --indent 0 --arg dirs "$dirs" '$dirs | split(" ")')
+          dirs=$(jq -nc --arg dirs "$dirs" '$dirs | split(" ")')
           echo "dirs=$dirs" >> $GITHUB_OUTPUT
 
       - name: Get the tag name for the release
